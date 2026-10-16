@@ -1,19 +1,24 @@
 {
-  "name": "cc-context-awareness",
+  "name": "context-awareness-for-agents",
   "owner": {
     "name": "CobuterMan"
   },
-  "description": "Configurable context window thresholds and automated warning hooks for Claude Code.",
+  "description": "On-demand context readings and configurable reminders for Claude Code.",
   "plugins": [
     {
       "name": "context-awareness",
-      "source": "./plugins/context-awareness",
-      "description": "Configurable context thresholds that inject warnings into Claude Code before context exhaustion.",
+      "source": "./",
+      "description": "Read recorded context usage and inject instructions at configured thresholds.",
       "category": "context-management",
-      "tags": ["context-window", "hooks", "thresholds", "automation"],
+      "tags": [
+        "context-window",
+        "hooks",
+        "thresholds",
+        "automation"
+      ],
       "license": "MIT",
-      "homepage": "https://github.com/sdi2200262/cc-context-awareness",
-      "repository": "https://github.com/sdi2200262/cc-context-awareness",
+      "homepage": "https://github.com/sdi2200262/context-awareness-for-agents",
+      "repository": "https://github.com/sdi2200262/context-awareness-for-agents",
       "author": {
         "name": "CobuterMan"
       }

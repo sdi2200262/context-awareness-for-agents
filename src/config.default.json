@@ -1,7 +1,7 @@
 {
   "thresholds": [
     {
-      "percent": 80,
+      "percent": 70,
       "level": "warning",
       "message": "You are at {percentage}% context window usage ({remaining}% remaining). Proactively inform the user and suggest using /compact or completing the current task before context runs out."
     }

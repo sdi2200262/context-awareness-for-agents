@@ -8,15 +8,19 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y jq
-
-      - name: Run test suite
-        run: ./test/test.sh
+      - uses: actions/checkout@v4
+      - name: Install jq on Linux
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y jq
+      - name: Install jq on macOS
+        if: runner.os == 'macOS'
+        run: command -v jq || brew install jq
+      - name: Run tests
+        env:
+          BASH_BIN: /bin/bash
+        run: /bin/bash test/test.sh

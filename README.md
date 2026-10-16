@@ -1,191 +1,59 @@
-# cc-context-awareness
+# Context awareness for agents
 
-Configurable and monitor context window thresholds for [Claude Code](https://docs.anthropic.com/en/docs/claude-code). Injects instructions or run scripts when usage reaches specified thresholds.
+Check how much context your agent has accumulated, and give it instructions at
+chosen thresholds. Supports Claude Code. Requires Bash 3.2+ and
+[jq](https://jqlang.github.io/jq/download/).
 
 <p align="center">
-  <img src="docs/diagram.svg" alt="cc-context-awareness architecture diagram" width="800"/>
+  <img src="assets/diagram.svg" alt="Context-based instructions steering the agent's workflow" width="800"/>
 </p>
 
-## Breaking Changes (v2.0.0)
+Check recorded usage on demand, or give the agent instructions at chosen thresholds.
 
-Version 2.0.0 removes the Node.js CLI (`npx cc-context-awareness`), npm dependencies, and bundled workflow templates. The project now provides minimal hook scripts and a Claude Code plugin implemented in Bash and `jq`, following the structure of [cc-get-my-context](https://github.com/sdi2200262/cc-get-my-context).
+## Install
 
-## How It Works
+Follow these instructions, or ask your agent to follow them.
 
-Claude Code exposes context usage through `statusLine` data rather than hook payloads. This tool links three components:
+<details>
+<summary><strong>Claude Code</strong></summary>
 
-1. **`bridge.sh` (`statusLine`)**: Reads the JSON payload Claude Code provides to the status line, extracts `used_percentage`, and writes the value to `/tmp/.cc-ctx-pct-${session_id}`. If piped to another command, it passes the original JSON through unchanged.
-2. **`check-thresholds.sh` (`PreToolUse` hook)**: Reads the cached percentage before each tool call and compares it against configured thresholds. When usage reaches a threshold, it injects the threshold message as `additionalContext`.
-3. **`reset.sh` (`SessionStart` hook)**: Clears cached percentage and state files on compaction (`matcher: "compact"`), then places a marker so the evaluator resets cleanly.
+Run in Claude Code and choose user-wide or project scope when installing:
 
-## Requirements
-
-- [Claude Code](https://docs.anthropic.com/en/docs/claude-code)
-- [`jq`](https://jqlang.github.io/jq/download/) (`brew install jq` on macOS or `sudo apt-get install jq` on Ubuntu)
-- Bash 3.2+
-
-## Installation
-
-### Plugin
-
-Install the plugin from Claude Code:
-
-```bash
-/plugin add sdi2200262/cc-context-awareness
+```text
+/plugin marketplace add sdi2200262/context-awareness-for-agents
+/plugin install context-awareness@context-awareness-for-agents
 ```
 
-The plugin registers the `PreToolUse` and `SessionStart` hooks automatically.
+Restart Claude and invoke `/context-awareness:get-my-context`.
 
-Configure `statusLine` in `~/.claude/settings.json` (global) or `./.claude/settings.local.json` (project):
+For on-demand readings using the skill only, disable this plugin's hooks.
 
-```json
-{
-  "statusLine": {
-    "type": "command",
-    "command": "~/.claude/plugins/cache/cc-context-awareness/context-awareness/scripts/bridge.sh"
-  }
-}
-```
+</details>
 
-If you use an existing status line tool (such as `ccstatusline`), pipe into it:
+## Configure
 
-```json
-{
-  "statusLine": {
-    "type": "command",
-    "command": "~/.claude/plugins/cache/cc-context-awareness/context-awareness/scripts/bridge.sh | ccstatusline"
-  }
-}
-```
+The plugin works with defaults: **1,000,000-token capacity** (Opus 5.5 preset)
+and a **70% reminder threshold**.
 
-### Manual
+To customize, create or edit these files, or ask your agent to do it.
+Use `~/.claude/context-awareness/` for all projects or
+`<project>/.claude/context-awareness/` for one project. Start from the linked
+templates if the files do not exist:
 
-Clone or copy the scripts:
+- [capacity.conf](src/capacity.conf): choose a model preset, assistant limit, or custom capacity.
+- [config.json](src/config.default.json): choose reminder thresholds, messages, and repeat behavior.
 
-```bash
-git clone https://github.com/sdi2200262/cc-context-awareness.git
-mkdir -p ~/.claude/cc-context-awareness
-cp -rL cc-context-awareness/plugins/context-awareness/scripts/* ~/.claude/cc-context-awareness/
-chmod +x ~/.claude/cc-context-awareness/*.sh
-```
+Project settings override user settings. `CLAUDE_CONFIG_DIR`, when set, replaces
+`~/.claude`. Keep overrides outside the installed plugin so updates preserve them.
 
-Add the hooks and status line to `~/.claude/settings.json` (global) or `./.claude/settings.local.json` (project):
-
-```json
-{
-  "statusLine": {
-    "type": "command",
-    "command": "~/.claude/cc-context-awareness/bridge.sh"
-  },
-  "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": ".*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "~/.claude/cc-context-awareness/check-thresholds.sh"
-          }
-        ]
-      }
-    ],
-    "SessionStart": [
-      {
-        "matcher": "compact",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "~/.claude/cc-context-awareness/reset.sh"
-          }
-        ]
-      }
-    ]
-  }
-}
-```
-
-## Configuration
-
-Place configuration in `./.claude/cc-context-awareness/config.json` (project) or `~/.claude/cc-context-awareness/config.json` (global). If neither exists, the tool uses [`config.default.json`](file:///Users/cobuterman/Documents/Projects/General/cc-context-awareness/plugins/context-awareness/scripts/config.default.json).
-
-Project settings take precedence over global settings.
-
-```json
-{
-  "thresholds": [
-    {
-      "percent": 80,
-      "level": "warning",
-      "message": "Context window usage is at {percentage}% ({remaining}% remaining). Inform the user and suggest running /compact or completing the current task."
-    }
-  ],
-  "repeat_mode": "once_per_tier_reset_on_compaction",
-  "flag_dir": "/tmp"
-}
-```
-
-### Reference
-
-#### `thresholds`
-
-| Field | Type | Description |
-|---|---|---|
-| `percent` | integer | Trigger percentage (0–100). |
-| `level` | string | Unique name for the tier. |
-| `message` | string | Injected message. Supports `{percentage}`, `{remaining}`, and `{session_id}`. |
-
-#### `repeat_mode`
-
-| Mode | Behavior |
-|---|---|
-| `once_per_tier_reset_on_compaction` | Fires once per tier. Resets if usage drops below the threshold (default). |
-| `once_per_tier` | Fires once per session. Does not reset. |
-| `every_turn` | Fires on every turn while usage remains above the threshold. |
-
-#### `flag_dir`
-
-Directory for session state files. Defaults to `/tmp`.
-
-### Configuration Examples
-
-#### Example: Automated Session Memory
-
-This example illustrates how to maintain persistent notes across `/compact` events. It prompts Claude to write an initial checkpoint at 50% context, update progress at 65%, and finalize notes before suggesting compaction at 80%:
-
-```json
-{
-  "thresholds": [
-    {
-      "percent": 50,
-      "level": "memory-initial",
-      "message": "Context window usage is at {percentage}%. Write an initial session checkpoint to .claude/session-memory.md covering current goals, completed steps, and active decisions."
-    },
-    {
-      "percent": 65,
-      "level": "memory-update",
-      "message": "Context window usage is at {percentage}%. Update .claude/session-memory.md with recent file modifications, test results, and remaining work."
-    },
-    {
-      "percent": 80,
-      "level": "memory-final",
-      "message": "Context window usage is at {percentage}% ({remaining}% remaining). Finalize .claude/session-memory.md with clear next steps, notify the user, and suggest running /compact."
-    }
-  ],
-  "repeat_mode": "once_per_tier_reset_on_compaction",
-  "flag_dir": "/tmp"
-}
-```
-
-## Testing
-
-Run the test suite:
-
-```bash
-./test/test.sh
-```
-
-The script tests manifest validity, percentage extraction, pipe pass-through, threshold evaluation, and compaction resets.
+Readings reflect the latest recorded usage; new messages may not yet be counted.
 
 ## License
 
-MIT
+[MIT](LICENSE).
+
+<p align="center">
+  <a href="https://github.com/sdi2200262" target="_blank">
+    <img src="assets/cobuter-man.png" alt="CobuterMan" width="150"/>
+  </a>
+</p>
