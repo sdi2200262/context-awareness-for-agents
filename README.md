@@ -8,8 +8,6 @@ chosen thresholds. Supports Claude Code. Requires Bash 3.2+ and
   <img src="assets/diagram.svg" alt="Context-based instructions steering the agent's workflow" width="800"/>
 </p>
 
-Check recorded usage on demand, or give the agent instructions at chosen thresholds.
-
 ## Install
 
 Follow these instructions, or ask your agent to follow them.
