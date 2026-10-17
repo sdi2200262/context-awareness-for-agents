@@ -31,7 +31,7 @@ codex_request 1000 500 20 1020 >> "$TRANSCRIPT"
 codex_request 2000 1500 30 2030 >> "$TRANSCRIPT"
 codex_request 2000 1500 30 2030 >> "$TRANSCRIPT"
 printf '%s\n' '{"type":"event_msg","payload":{"type":"token_count","info":null}}' '{partial' >> "$TRANSCRIPT"
-read_context | assert_json '.used_tokens == 2030 and .measurement_source == "request" and .model == "fixture-codex" and .window_tokens == null and .measurement_basis == "codex_latest_total"'
+read_context | assert_json '.used_tokens == 2030 and .measurement_source == "request" and .model == "fixture-codex" and .window_tokens == 475000 and .capacity_source == "assistant_limit" and .measurement_basis == "codex_latest_total"'
 printf '%s\n' '{"type":"compacted","timestamp":"boundary-one","payload":{"message":"summary"}}' >> "$TRANSCRIPT"
 read_context | assert_json '.used_tokens == null and .segment == "boundary-one"'
 codex_request 0 0 0 4773 >> "$TRANSCRIPT"

@@ -51,8 +51,8 @@ available in Codex.
 
 ## Configure
 
-Claude defaults to **1,000,000-token capacity** (Opus 5.5 preset). Codex starts
-with capacity unset: choose a capacity to enable percentages and reminders.
+Claude defaults to **1,000,000-token capacity** (Opus 5.5 preset). Codex defaults
+to **475,000-token capacity** (GPT-6.1 Sol preset capped for a 500k Codex window).
 Both use a **70% reminder threshold**.
 
 To customize, create or edit these files, or ask your agent to do it.
@@ -66,6 +66,20 @@ Use the appropriate directory for all projects or one project:
 Create `capacity.conf` from its template to choose a model preset, assistant
 limit, or custom capacity. Create [config.json](src/config.default.json) to
 choose reminder thresholds, messages, and repeat behavior.
+
+The Codex template separates **API model maxima** from **configured Codex
+windows**. Its GPT-6.1 Sol, GPT-6 Astra, GPT-6 Sol and GPT-6 Luna API presets are
+1,050,000 tokens ([OpenAI model specifications](https://developers.openai.com/api/docs/models)).
+The `codex-500k` and `codex-272k` assistant limits use 475,000 and 258,400 tokens,
+respectively, after [Codex's 5% reserve](https://github.com/openai/codex/blob/main/codex-rs/protocol/src/openai_models.rs).
+These are observed configurations, not plan guarantees. Choose the limit that
+matches your setup; Codex can compact before that window fills.
+
+To use an API maximum as the denominator, clear `assistant_limit` in your copied
+template. API authentication alone does not enlarge Codex's configured window.
+These settings only control this plugin's percentages and reminders; they do
+not configure Codex or detect its model, window, authentication method or plan.
+For another usable capacity, add a limit preset or set `custom`.
 
 Project settings override user settings. `CLAUDE_CONFIG_DIR` and `CODEX_HOME`
 replace the respective user roots. `CONTEXT_CAPACITY_CONFIG` and
