@@ -56,3 +56,23 @@ codex_header empty > "$TMP/empty.jsonl"
 printf '%s\n' '{"type":"event_msg","payload":{"type":"token_count","info":null}}' >> "$TMP/empty.jsonl"
 "$BASH_BIN" "$ROOT/src/get-context.sh" codex empty --json --transcript "$TMP/empty.jsonl" | assert_json '.used_tokens == null'
 printf 'ok: Codex totals, compaction, rollback and session identity\n'
+
+# Large older segments must not leak readings or producer broken-pipe diagnostics.
+for assistant in claude codex; do
+  large="$TMP/$assistant-large.jsonl"
+  if [[ "$assistant" == claude ]]; then
+    request 999 0 0 > "$large"
+    jq -cn '{type:"noise",text:("x" * 200000)}' >> "$large"
+    printf '%s\n' '{"type":"system","subtype":"compact_boundary","uuid":"large-boundary","compactMetadata":{"postTokens":123}}' >> "$large"
+  else
+    codex_header reading > "$large"
+    codex_request 999 0 0 999 >> "$large"
+    jq -cn '{type:"noise",text:("x" * 200000)}' >> "$large"
+    printf '%s\n' '{"type":"compacted","timestamp":"large-boundary"}' >> "$large"
+    codex_request 0 0 0 123 >> "$large"
+  fi
+  "$BASH_BIN" "$ROOT/src/get-context.sh" "$assistant" reading --json --transcript "$large" > "$TMP/out" 2> "$TMP/err"
+  assert_json '.used_tokens == 123 and .segment == "large-boundary"' < "$TMP/out"
+  [[ ! -s "$TMP/err" ]]
+done
+printf 'ok: large prior segments and clean output\n'

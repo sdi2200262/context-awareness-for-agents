@@ -15,7 +15,7 @@ if [[ -z "$TRANSCRIPT" ]]; then
   if [[ ${#paths[@]} -ne 1 ]]; then unavailable; exit 0; fi
   TRANSCRIPT="${paths[0]}"
 fi
-if [[ ! -f "$TRANSCRIPT" ]]; then unavailable; exit 0; fi
+if [[ ! -f "$TRANSCRIPT" || ! -r "$TRANSCRIPT" ]]; then unavailable; exit 0; fi
 if ! head -n 1 "$TRANSCRIPT" | jq -e --arg sid "$SID" \
   '.type == "session_meta" and .payload.id == $sid' >/dev/null 2>&1; then
   unavailable; exit 0
@@ -23,7 +23,8 @@ fi
 # jq terminates at the current boundary; ignore only the producer's SIGPIPE.
 (
   set +o pipefail
-  if command -v tac >/dev/null 2>&1; then tac "$TRANSCRIPT"; else tail -r "$TRANSCRIPT"; fi |
+  # Early termination is expected; GNU tac can diagnose its harmless broken pipe.
+  if command -v tac >/dev/null 2>&1; then tac "$TRANSCRIPT" 2>/dev/null; else tail -r "$TRANSCRIPT" 2>/dev/null; fi |
     jq -Rn '
 def count:
   if type == "number" and . >= 0 and floor == . then . else null end;

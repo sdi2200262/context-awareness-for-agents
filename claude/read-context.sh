@@ -6,14 +6,15 @@ TRANSCRIPT="${2:-}"
 if [[ -z "$TRANSCRIPT" ]]; then
   TRANSCRIPT="$(find "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/projects" -maxdepth 2 -type f -name "$SID.jsonl" 2>/dev/null | head -1 || true)"
 fi
-if [[ -z "$TRANSCRIPT" || ! -f "$TRANSCRIPT" ]]; then
+if [[ -z "$TRANSCRIPT" || ! -f "$TRANSCRIPT" || ! -r "$TRANSCRIPT" ]]; then
   printf '%s\n' '{"used_tokens":null,"model":null,"measurement_source":"unavailable","measured_at":null,"segment":null,"measurement_basis":"input_and_cache"}'
   exit 0
 fi
 # jq stops at the first boundary; only the reverse reader's SIGPIPE is harmless.
 (
   set +o pipefail
-  if command -v tac >/dev/null 2>&1; then tac "$TRANSCRIPT"; else tail -r "$TRANSCRIPT"; fi |
+  # Early termination is expected; GNU tac can diagnose its harmless broken pipe.
+  if command -v tac >/dev/null 2>&1; then tac "$TRANSCRIPT" 2>/dev/null; else tail -r "$TRANSCRIPT" 2>/dev/null; fi |
     jq -Rn '
 # Read reversed JSONL until the current segment boundary or the start of file.
 def count:

@@ -58,3 +58,21 @@ if "$BASH_BIN" "$ROOT/src/get-context.sh" '../claude' reading > "$TMP/out" 2> "$
 if CODEX_THREAD_ID='' "$BASH_BIN" "$ROOT/src/get-context.sh" codex > "$TMP/out" 2> "$TMP/err"; then exit 1; fi
 [[ -z "$(find "$PACKAGE" -type l)" ]]
 printf 'ok: assistant coexistence, native configuration and installed transports\n'
+
+# A new reader can be added without modifying shared dispatch or calculations.
+mkdir -p "$PACKAGE/fixture-agent"
+cat > "$PACKAGE/fixture-agent/integration.sh" <<'ADAPTER'
+context_adapter_scope() {
+  CONTEXT_PROJECT_CONFIG="$CONTEXT_PROJECT_DIR/.fixture/context-awareness"
+  CONTEXT_USER_CONFIG="$CONTEXT_PROJECT_DIR/.fixture-user/context-awareness"
+}
+context_adapter_session() { printf '%s\n' fixture-session; }
+context_adapter_read() {
+  printf '%s\n' '{"used_tokens":65,"measurement_source":"fixture","measurement_basis":"fixture","model":null,"measured_at":null,"segment":"initial"}'
+}
+ADAPTER
+printf 'custom = 100\n' > "$PACKAGE/fixture-agent/capacity.conf"
+"$BASH_BIN" "$PACKAGE/src/get-context.sh" fixture-agent --json |
+  assert_json '.assistant == "fixture-agent" and .session_id == "fixture-session" and .used_tokens == 65 and .used_percentage == 65'
+[[ "$(jq -r .version "$PACKAGE/.claude-plugin/plugin.json")" == "$(jq -r .version "$PACKAGE/.codex-plugin/plugin.json")" ]]
+printf 'ok: extension contract without shared-code changes\n'
