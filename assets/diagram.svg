@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1100" height="420" fill="none" viewBox="0 0 1100 420" role="img" aria-labelledby="diagram-title diagram-description">
   <title id="diagram-title">Context awareness for agents</title>
-  <desc id="diagram-description">Check recorded context usage on demand, or deliver configured threshold instructions before the agent uses tools.</desc>
+  <desc id="diagram-description">Check recorded context usage on demand, or deliver configured threshold reminders before the agent uses tools.</desc>
   <defs>
     <marker id="arrowGray" markerHeight="8" markerWidth="8" orient="auto-start-reverse" refX="9" refY="5" viewBox="0 0 10 10">
       <path fill="#6b6560" d="m0 0 10 5-10 5z" />
@@ -43,6 +43,6 @@
   <path stroke="#c4896a" stroke-dasharray="6 3" stroke-width="2" marker-end="url(#arrowPeach)" d="M166 290v-30q0-10 10-10h204q10 0 10-10v-72" />
   <rect width="360" height="76" x="560" y="290" fill="#fff8e6" stroke="#d4a843" stroke-width="1.5" filter="url(#shadow)" rx="8" />
   <text x="740" y="322" fill="#3d3d3d" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="15" font-weight="600" text-anchor="middle">Context awareness for agents</text>
-  <text x="740" y="346" fill="#8a7a40" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="12" text-anchor="middle">On-demand readings · threshold instructions</text>
+  <text x="740" y="346" fill="#8a7a40" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="12" text-anchor="middle">On-demand readings · threshold reminders</text>
   <path stroke="#d4a843" stroke-dasharray="6 3" stroke-width="2" marker-end="url(#arrowAmber)" d="M740 290v-30q0-10-10-10H624q-10 0-10-10v-72" />
 </svg>

@@ -1,12 +1,12 @@
 # Context awareness for agents
 
 Context awareness informs your agent how much of the context window it has
-used and injects instructions to the conversation when usage crosses thresholds
+used and injects reminders into the conversation when usage crosses thresholds
 you choose. It supports Claude Code and Codex, and requires Bash 3.2 or later
 and jq.
 
 <p align="center">
-  <img src="assets/diagram.svg" alt="Context-based instructions steering the agent's workflow" width="800"/>
+  <img src="assets/diagram.svg" alt="Context reminders steering the agent's workflow" width="800"/>
 </p>
 
 ## Install
@@ -48,7 +48,7 @@ lag behind the conversation's latest API calls. Skills and hook reminders
 include percentages, token counts, the capacity model preset, the recorded
 model and the config path for correcting a mismatch.
 
-By default the plugin injects a reminder to the conversation at 70% of these
+By default the plugin injects a reminder into the conversation at 70% of these
 capacities.
 
 | Assistant | Default model | Usable context window |
