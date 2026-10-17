@@ -1,4 +1,5 @@
 {
+  "hooks": true,
   "thresholds": [
     {
       "percent": 70,

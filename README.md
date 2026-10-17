@@ -24,7 +24,7 @@ Run in Claude Code and choose user-wide or project scope when installing:
 
 Restart Claude and invoke `/context-awareness:get-my-context`.
 
-For on-demand readings using the skill only, disable this plugin's hooks.
+For on-demand readings only, use the skill-only configuration below.
 
 </details>
 
@@ -40,7 +40,8 @@ codex plugin add context-awareness@context-awareness-for-agents
 
 Restart Codex and select `get-my-context` from its skills picker, or ask it to
 use that skill. Review and trust the plugin's hooks through `/hooks` to enable
-threshold reminders. For on-demand readings only, leave the hooks disabled.
+threshold reminders. For on-demand readings only, use the skill-only configuration
+below.
 
 The skill runs a shell command under Codex's normal permissions. Local Codex
 session records are required; Claude's automatic skill preprocessing is not
@@ -71,6 +72,27 @@ replace the respective user roots. `CONTEXT_CAPACITY_CONFIG` and
 `CONTEXT_THRESHOLDS_CONFIG` select explicit files ahead of either scope; if
 exported to both assistants, both use those files. Keep overrides outside the
 installed plugin so updates preserve them. Assistants keep separate session state.
+
+For **skill-only mode**, set `"hooks": false` in the assistant's user or project
+`config.json`. A new file can contain just:
+
+```json
+{"hooks": false}
+```
+
+The skill stays available. Automatic monitoring exits before reading session data
+or touching reminder state. The host still starts the small hook process.
+An empty `"thresholds": []` also skips monitoring. Omitting `hooks` means enabled.
+
+For example, keep both enabled globally and use the file above in one project's
+settings directory to make that project skill-only. For the reverse, set
+`hooks` to `false` in user settings and copy the [default config](src/config.default.json)
+into a project's settings directory to enable its reminders. Configuration files
+replace lower-priority files; they are not merged. No project plugin reinstall
+is needed. Changes apply on the next tool call.
+
+Keep the plugin enabled; the assistant's native hook permissions and trust still
+apply when reminders are enabled.
 
 Readings reflect the latest recorded usage; new messages may not yet be counted.
 Claude counts request input and cache tokens; Codex uses its latest recorded

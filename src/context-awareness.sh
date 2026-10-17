@@ -4,13 +4,20 @@ set -euo pipefail
 # Monitoring failures must never use the native tool-blocking exit code 2.
 trap 'exit 1' ERR
 CONTEXT_SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$CONTEXT_SRC/check-thresholds.sh"
 ASSISTANT="$1"
 INPUT="$(cat)"
 SID="$(jq -er '.session_id // empty' <<< "$INPUT")" || exit 0
 PROJECT="$(jq -r '.cwd // empty' <<< "$INPUT")"
 if [[ -n "$PROJECT" ]]; then export CONTEXT_PROJECT_DIR="$PROJECT"; fi
+context_scope "$ASSISTANT"
+# Resolve one configuration snapshot before any measurement or state access.
+CONFIG="$(context_threshold_config)"
+context_hooks_enabled "$CONFIG" || exit 0
+context_session "$SID"
 TRANSCRIPT="$(jq -r '.transcript_path // empty' <<< "$INPUT")"
-READING="$(bash "$CONTEXT_SRC/get-context.sh" "$ASSISTANT" "$SID" --json --transcript "$TRANSCRIPT")"
-MESSAGE="$(printf '%s\n' "$READING" | bash "$CONTEXT_SRC/check-thresholds.sh" "$ASSISTANT")"
+MEASUREMENT="$(context_adapter_read "$SID" "$TRANSCRIPT")"
+READING="$(context_report "$MEASUREMENT" "$SID" json)"
+MESSAGE="$(context_check_thresholds "$READING" "$CONFIG")"
 [[ -n "$MESSAGE" ]] || exit 0
 jq -cn --arg message "$MESSAGE" '{hookSpecificOutput: {hookEventName: "PreToolUse", additionalContext: $message}}'

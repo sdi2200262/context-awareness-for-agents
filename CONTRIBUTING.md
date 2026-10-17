@@ -26,6 +26,14 @@ The skill and hooks must identify their assistant explicitly and use the same
 reader. Native paths, accounting and invocation capabilities belong to the
 integration. A reader does not require hook or skill-preprocessing support.
 
+All hook transports must resolve and validate reminder configuration before
+reading native usage or capacity. Use `context_threshold_config` and
+`context_hooks_enabled` from `src/check-thresholds.sh`: `hooks: false` or an empty
+threshold list skips monitoring while the skill remains available. Pass the same
+validated JSON snapshot to `context_check_thresholds`; do not reload configuration
+after measuring. Existing reminder state is preserved while monitoring is off.
+Configuration uses explicit > project > user > default whole-file selection.
+
 Run `bash test/test.sh`. Shared calculations and reminder sequences run once,
 using normalized readings. Add native fixtures to `test/readers.sh` and extend
 `test/integrations.sh` for configuration, package discovery and transports.
