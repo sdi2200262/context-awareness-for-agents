@@ -53,6 +53,21 @@ capacities.
 | Claude Code | Opus 5.5 | About 967,000 tokens from a 1M window |
 | Codex | GPT-6.1 Sol | 475,000 tokens from a 500k window |
 
+To keep the skill and turn reminders off, use a `config.json` containing:
+
+```json
+{"hooks": false}
+```
+
+An empty `"thresholds": []` has the same effect. Hooks then skip session
+reads and keep their reminder state.
+
+**Changes apply on the next tool call. Each assistant keeps separate settings
+and reminder state.**
+
+<details>
+<summary><strong>Capacity</strong></summary>
+
 Claude's capacity follows its compaction threshold; Codex's follows its usable
 window, with compaction occurring earlier.
 
@@ -66,11 +81,13 @@ assistant limits and comments:
 - [claude/capacity.conf](claude/capacity.conf)
 - [codex/capacity.conf](codex/capacity.conf)
 
-The shared [src/config.default.json](src/config.default.json) handles the context threshold reminders,
-messages and repeat behavior. Edit these files in the installed plugin to change its defaults. **A plugin
-update can replace your edits.**
+</details>
 
-`config.json` takes these fields:
+<details>
+<summary><strong>Reminders</strong></summary>
+
+The shared [src/config.default.json](src/config.default.json) handles the context threshold reminders,
+messages and repeat behavior. `config.json` takes these fields:
 
 | Field | Values |
 | --- | --- |
@@ -78,6 +95,14 @@ update can replace your edits.**
 | `thresholds` | A list of `percent`, a unique `level` and a `message`. Messages can use `{percentage}`, `{remaining}` and `{session_id}`. |
 | `repeat_mode` | `once_per_tier` sends each level once per session. `once_per_tier_reset_on_compaction`, the default, sends it again after compaction or after usage drops below it. `every_turn` sends it on every tool call at or above it. |
 | `flag_dir` | Absolute directory for reminder state. The default is `/tmp`. |
+
+</details>
+
+<details>
+<summary><strong>Custom settings</strong></summary>
+
+Edit the bundled files in the installed plugin to change its defaults. **A plugin
+update can replace your edits.**
 
 To keep settings across updates, save your own `capacity.conf` or
 `config.json` in the user directory. For one project, save it in the project
@@ -95,24 +120,14 @@ nearest Git root for `.codex/context-awareness/`.
 Each file is selected on its own: a path in `CONTEXT_CAPACITY_CONFIG` or
 `CONTEXT_THRESHOLDS_CONFIG`, then the project file, then the user file, then
 the bundled file. The selected file replaces the others whole, so you should
-include every setting you need. **Changes apply on the next tool call.**
+include every setting you need.
 
-**Each assistant keeps separate settings and reminder state.**
+Because the project file takes precedence, a project can turn reminders off
+while they are on globally, or on while they are off, without reinstalling. To
+turn them on, the project's `config.json` needs its own thresholds, such as the
+contents of `src/config.default.json`; `{"hooks": true}` alone is incomplete.
 
-### Skill-only mode
-
-To keep the skill and turn reminders off, use a `config.json` containing:
-
-```json
-{"hooks": false}
-```
-
-An empty `"thresholds": []` has the same effect. Hooks then skip session
-reads and keep their reminder state. Because the project file takes precedence,
-a project can turn reminders off while they are on globally, or on while they
-are off, without reinstalling. To turn them on, the project's `config.json`
-needs its own thresholds, such as the contents of `src/config.default.json`;
-`{"hooks": true}` alone is incomplete.
+</details>
 
 ## License
 
