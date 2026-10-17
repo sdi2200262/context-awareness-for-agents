@@ -6,6 +6,7 @@
   "homepage": "https://github.com/sdi2200262/context-awareness-for-agents",
   "repository": "https://github.com/sdi2200262/context-awareness-for-agents",
   "license": "MIT",
+  "keywords": ["context-window", "thresholds", "hooks", "codex"],
   "skills": ["./codex/skills/"],
   "hooks": "./codex/hooks.json"
 }
