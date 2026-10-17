@@ -20,4 +20,7 @@ MEASUREMENT="$(context_adapter_read "$SID" "$TRANSCRIPT")"
 READING="$(context_report "$MEASUREMENT" "$SID" json)"
 MESSAGE="$(context_check_thresholds "$READING" "$CONFIG")"
 [[ -n "$MESSAGE" ]] || exit 0
-jq -cn --arg message "$MESSAGE" '{hookSpecificOutput: {hookEventName: "PreToolUse", additionalContext: $message}}'
+SUMMARY="$(context_format_reading "$READING")"
+GUIDANCE="Use these usage details internally to plan your work. Report usage only when the user asks. If the capacity preset or token limit differs from the context window or compaction limit stated for this session, correct the capacity config and rerun get-my-context before using this percentage."
+jq -cn --arg message "$MESSAGE" --arg summary "$SUMMARY" --arg guidance "$GUIDANCE" \
+  '{hookSpecificOutput: {hookEventName: "PreToolUse", additionalContext: ($message + "\n\n" + $summary + "\n" + $guidance)}}'

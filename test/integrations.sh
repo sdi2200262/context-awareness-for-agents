@@ -30,6 +30,7 @@ cp -R "$ROOT/src" "$ROOT/claude" "$ROOT/codex" "$ROOT/.claude-plugin" "$ROOT/.co
 export CLAUDE_PLUGIN_ROOT="$PACKAGE" PLUGIN_ROOT="$PACKAGE"
 for assistant in claude codex; do
   manifest="$PACKAGE/.$assistant-plugin/plugin.json"
+  project="$CONTEXT_PROJECT_DIR/.$assistant/context-awareness"
   skills="$(jq -r '.skills[0]' "$manifest")"
   hooks="$(jq -r '.hooks' "$manifest")"
   [[ -f "$PACKAGE/$skills/get-my-context/SKILL.md" ]]
@@ -37,7 +38,18 @@ for assistant in claude codex; do
   command="$(jq -r '.hooks.PreToolUse[0].hooks[0].command' "$PACKAGE/$hooks")"
   if [[ "$assistant" == claude ]]; then transcript="$CLAUDE_LOG"; else transcript="$CODEX_LOG"; fi
   input="$(jq -cn --arg cwd "$CONTEXT_PROJECT_DIR" --arg path "$transcript" '{session_id:"reading",cwd:$cwd,transcript_path:$path}')"
-  printf '%s\n' "$input" | "$BASH_BIN" -c "$command" | assert_json ".hookSpecificOutput.additionalContext == \"$assistant reminder\""
+  delivered="$(printf '%s\n' "$input" | "$BASH_BIN" -c "$command")"
+  printf '%s\n' "$delivered" | assert_json "(.hookSpecificOutput.additionalContext | startswith(\"$assistant reminder\\n\\n\"))"
+  context="$(jq -r '.hookSpecificOutput.additionalContext' <<< "$delivered")"
+  skill_reading="$("$BASH_BIN" "$PACKAGE/src/get-context.sh" "$assistant")"
+  [[ "$context" == *"$skill_reading"* ]]
+  [[ "$context" == *"Assistant: $assistant."* && "$context" == *"Capacity config: $project/capacity.conf"* ]]
+  [[ "$context" == *'correct the capacity config and rerun get-my-context'* ]]
+  if [[ "$assistant" == claude ]]; then
+    [[ "$context" == *'60% used (60 / 100 tokens)'* && "$context" == *'Recorded model: fixture.'* ]]
+  else
+    [[ "$context" == *'50% used (60 / 120 tokens)'* ]]
+  fi
   [[ -z "$(printf '%s\n' "$input" | "$BASH_BIN" -c "$command")" ]]
   # Hook cwd must override the parent shell's project, never choose by dotdirs.
   CONTEXT_PROJECT_DIR="$TMP/wrong project" "$BASH_BIN" -c "$command" <<< "$input" > "$TMP/out"
@@ -74,7 +86,7 @@ jq -cn --arg dir "$TMP/root-state" \
   > "$CONTEXT_PROJECT_DIR/.claude/context-awareness/config.json"
 printf '{"hooks":false}\n' > "$CHILD/.claude/context-awareness/config.json"
 CONTEXT_PROJECT_DIR="$CHILD" "$BASH_BIN" -c "$hook" <<< "$input" |
-  assert_json '.hookSpecificOutput.additionalContext == "root reminder"'
+  assert_json '(.hookSpecificOutput.additionalContext | startswith("root reminder\n\n"))'
 # Outside Claude, retain explicit-directory and working-directory fallbacks.
 (
   cd "$CHILD"

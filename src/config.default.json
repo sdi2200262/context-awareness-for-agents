@@ -4,7 +4,7 @@
     {
       "percent": 70,
       "level": "warning",
-      "message": "You are at {percentage}% context window usage ({remaining}% remaining). Proactively inform the user and suggest using /compact or completing the current task before context runs out."
+      "message": "Use the remaining context to pace your work and decide when to compact."
     }
   ],
   "repeat_mode": "once_per_tier_reset_on_compaction",

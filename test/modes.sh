@@ -69,11 +69,11 @@ for assistant in claude codex; do
   # Global skill-only -> project both; project config replaces the user file.
   printf '{"hooks":false}\n' > "$user/config.json"
   write_config "$project/config.json" project
-  run_hook | assert_json '.hookSpecificOutput.additionalContext == "project"'
+  run_hook | assert_json '(.hookSpecificOutput.additionalContext | startswith("project\n\n"))'
   # Omitted hooks keeps existing configurations enabled.
   jq 'del(.hooks)' "$project/config.json" > "$TMP/legacy.json"
   cp "$TMP/legacy.json" "$project/config.json"
-  run_hook | assert_json '.hookSpecificOutput.additionalContext == "project"'
+  run_hook | assert_json '(.hookSpecificOutput.additionalContext | startswith("project\n\n"))'
   # Turning monitoring off preserves existing files/locks and does no reading.
   printf '{"hooks":false}\n' > "$project/config.json"
   check_skip
@@ -88,7 +88,7 @@ for assistant in claude codex; do
   CONTEXT_THRESHOLDS_CONFIG="$TMP/explicit.json" check_skip
   printf '{"hooks":false}\n' > "$project/config.json"
   write_config "$TMP/explicit.json" explicit
-  CONTEXT_THRESHOLDS_CONFIG="$TMP/explicit.json" run_hook | assert_json '.hookSpecificOutput.additionalContext == "explicit"'
+  CONTEXT_THRESHOLDS_CONFIG="$TMP/explicit.json" run_hook | assert_json '(.hookSpecificOutput.additionalContext | startswith("explicit\n\n"))'
   CONTEXT_THRESHOLDS_CONFIG="$TMP/missing.json" check_error
   # Validate configuration before the reader and keep native errors nonblocking.
   for value in null '"false"' 0 '{}' '[]'; do
@@ -119,12 +119,12 @@ for assistant in claude codex; do
   [[ ! -s "$TMP/out" ]]
   # One hook uses the config it selected, even if the file changes during reading.
   write_config "$project/config.json" snapshot
-  CONTEXT_TEST_CHANGE_CONFIG="$project/config.json" run_hook | assert_json '.hookSpecificOutput.additionalContext == "snapshot"'
+  CONTEXT_TEST_CHANGE_CONFIG="$project/config.json" run_hook | assert_json '(.hookSpecificOutput.additionalContext | startswith("snapshot\n\n"))'
   check_skip
   # Disabling and re-enabling does not reset a once-per-tier reminder.
   write_config "$TMP/once.json" once
   jq '.repeat_mode = "once_per_tier" | .thresholds[0].level = "once"' "$TMP/once.json" > "$project/config.json"
-  run_hook | assert_json '.hookSpecificOutput.additionalContext == "once"'
+  run_hook | assert_json '(.hookSpecificOutput.additionalContext | startswith("once\n\n"))'
   cp "$project/config.json" "$TMP/saved.json"
   printf '{"hooks":false}\n' > "$project/config.json"
   check_skip
