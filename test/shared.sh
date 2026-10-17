@@ -70,6 +70,18 @@ jq '.thresholds[0].message = "explicit"' "$USER_CONFIG/config.json" > "$TMP/thre
 [[ "$(CONTEXT_THRESHOLDS_CONFIG="$TMP/thresholds.json" remind scope 55 first)" == explicit ]]
 printf 'ok: reminders and session state\n'
 
+# A stale lock is recovered; a fresh one makes the hook skip quietly.
+threshold_config once_per_tier
+lock_base="$TMP/state-once_per_tier/context-awareness-$(id -u)/claude"
+mkdir -p "$lock_base/stale.json.lock" "$lock_base/live.json.lock"
+touch -t 200001010000 "$lock_base/stale.json.lock"
+[[ "$(remind stale 55 first)" == 'low 55' && ! -e "$lock_base/stale.json.lock" ]]
+touch -t 200001010000 "$lock_base/file.json.lock"
+[[ "$(remind file 55 first)" == 'low 55' && ! -e "$lock_base/file.json.lock" ]]
+[[ -z "$(remind live 55 first)" && -d "$lock_base/live.json.lock" ]]
+rmdir "$lock_base/live.json.lock"
+printf 'ok: stale lock recovery\n'
+
 
 # Numeric/configuration edge cases are independent of assistant telemetry.
 for content in 'custom = 0' 'custom = -1' 'custom = 1.5' 'custom = nope' 'custom = 1000000001' 'custom = 1

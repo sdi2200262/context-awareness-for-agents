@@ -27,6 +27,21 @@ context_hooks_enabled() {
   jq -e 'if .hooks == false then false else (.thresholds | length) > 0 end' <<< "$1" >/dev/null
 }
 
+# A hook holds its lock for milliseconds, so a minute-old lock was left by a
+# killed process. Remove it rather than silencing reminders for the session.
+context_lock_acquire() {
+  local lock="$1" attempt=0
+  until mkdir "$lock" 2>/dev/null; do
+    if [[ -n "$(find "$lock" -prune -mmin +1 2>/dev/null)" ]]; then
+      rmdir "$lock" 2>/dev/null || rm -f "$lock" 2>/dev/null || return 1
+      continue
+    fi
+    attempt=$((attempt + 1))
+    [[ "$attempt" -lt 50 ]] || return 1
+    sleep 0.02
+  done
+}
+
 context_check_thresholds() (
   set -euo pipefail
   local READING="$1" CONFIG="$2" SID
@@ -39,15 +54,10 @@ context_check_thresholds() (
   (umask 077; mkdir -p "$STATE_DIR")
   STATE="$STATE_DIR/$SID.json"
   LOCK="$STATE.lock"
-  # Parallel tool calls share one session's repeat state.
-  ATTEMPT=0
-  until mkdir "$LOCK" 2>/dev/null; do
-    ATTEMPT=$(( ATTEMPT + 1 ))
-    [[ "$ATTEMPT" -lt 50 ]] || exit 0
-    sleep 0.02
-  done
+  context_lock_acquire "$LOCK" || exit 0
   TEMP=''
-  trap '[[ -z "$TEMP" ]] || rm -f "$TEMP"; rmdir "$LOCK"' EXIT
+  trap '[[ -z "$TEMP" ]] || rm -f "$TEMP"; rmdir "$LOCK" 2>/dev/null || true' EXIT
+  trap 'exit 1' HUP INT TERM
   OLD='{}'
   if [[ -f "$STATE" ]]; then OLD="$(cat "$STATE")"; fi
   EVALUATED="$(jq -cn --argjson config "$CONFIG" --argjson reading "$READING" --argjson old "$OLD" '
