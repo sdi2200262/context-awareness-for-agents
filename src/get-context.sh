@@ -108,7 +108,7 @@ context_scope() {
   CONTEXT_SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
   [[ "$1" =~ ^[a-z][a-z0-9-]*$ ]] || { context_error "invalid assistant: $1"; return 2; }
   CONTEXT_ASSISTANT="$1"
-  CONTEXT_INTEGRATION="$CONTEXT_SRC/../$CONTEXT_ASSISTANT"
+  CONTEXT_INTEGRATION="$(cd "$CONTEXT_SRC/../$CONTEXT_ASSISTANT" 2>/dev/null && pwd || true)"
   [[ -f "$CONTEXT_INTEGRATION/integration.sh" ]] || {
     context_error "unsupported assistant: $1"; return 2;
   }
