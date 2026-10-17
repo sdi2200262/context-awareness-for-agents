@@ -97,6 +97,13 @@ for assistant in claude codex; do
   done
   printf '{invalid\n' > "$project/config.json"
   check_error
+  write_config "$project/config.json" invalid-session
+  saved_input="$input"
+  for sid in 'bad/id' 'a b' 'a.b'; do
+    input="$(jq --arg sid "$sid" '.session_id = $sid' <<< "$saved_input")"
+    check_error
+  done
+  input="$saved_input"
   printf '{"hooks":false,"thresholds":"unused","repeat_mode":"unused"}\n' > "$project/config.json"
   check_skip
   printf 'not a measurement\n' | CONTEXT_THRESHOLDS_CONFIG="$project/config.json" "$BASH_BIN" "$PACKAGE/src/check-thresholds.sh" "$assistant" > "$TMP/out"

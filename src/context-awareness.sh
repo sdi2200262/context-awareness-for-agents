@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Common JSON hook transport for integrations with additionalContext support.
-set -euo pipefail
+set -Eeuo pipefail
 # Monitoring failures must never use the native tool-blocking exit code 2.
 trap 'exit 1' ERR
 CONTEXT_SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
