@@ -21,6 +21,6 @@ model. If it needs changing, edit the configuration selected for this session:
 `~/.claude/context-awareness/capacity.conf`. If `CLAUDE_CONFIG_DIR` is set, it
 replaces `~/.claude` for the user-wide path. Project configuration overrides
 user-wide configuration; either can be used regardless of plugin install scope.
-Use `src/capacity.conf` from this installation as a template when creating a
+Use `claude/capacity.conf` from this installation as a template when creating a
 configuration. Use the user's chosen model preset, assistant limit, or custom value.
 Do not infer capacity from your identity or plan, or edit the plugin cache.

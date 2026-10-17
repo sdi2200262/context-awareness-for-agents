@@ -19,7 +19,7 @@ jq -e '
 ' "$CONFIG" >/dev/null || { context_error "invalid threshold config: $CONFIG"; exit 2; }
 jq -e '.used_percentage != null' <<< "$READING" >/dev/null || exit 0
 BASE="$(jq -er '.flag_dir // "/tmp" | select(type == "string" and length > 0)' "$CONFIG")"
-STATE_DIR="$BASE/context-awareness-$(id -u)"
+STATE_DIR="$BASE/context-awareness-$(id -u)/$CONTEXT_ASSISTANT"
 (umask 077; mkdir -p "$STATE_DIR")
 STATE="$STATE_DIR/$SID.json"
 LOCK="$STATE.lock"

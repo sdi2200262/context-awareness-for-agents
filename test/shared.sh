@@ -1,0 +1,85 @@
+#!/usr/bin/env bash
+source "$(dirname "$0")/helpers.sh"
+# Shared calculations use a normalized reading, independent of native formats.
+source "$ROOT/src/get-context.sh"
+context_scope claude
+read_context() { context_report '{"used_tokens":0,"measurement_source":"fixture","measurement_basis":"fixture","model":null,"measured_at":null,"segment":"initial"}' reading json; }
+USER_CONFIG="$CLAUDE_CONFIG_DIR/context-awareness"
+PROJECT_CONFIG="$CLAUDE_PROJECT_DIR/.claude/context-awareness"
+mkdir -p "$USER_CONFIG"
+printf 'custom = 100\n' > "$USER_CONFIG/capacity.conf"
+read_context | assert_json '.window_tokens == 100 and .capacity_source == "custom"'
+cat > "$PROJECT_CONFIG/capacity.conf" <<'CAPACITY'
+selected_model = sample
+assistant_limit = small
+model.sample = 1000
+limit.small = 200
+CAPACITY
+read_context | assert_json '.window_tokens == 200 and .capacity_source == "assistant_limit"'
+sed '/assistant_limit = small/d' "$PROJECT_CONFIG/capacity.conf" > "$TMP/explicit.conf"
+CONTEXT_CAPACITY_CONFIG="$TMP/explicit.conf" read_context | assert_json '.window_tokens == 1000 and .capacity_source == "model_preset"'
+printf 'custom = 321\n' >> "$TMP/explicit.conf"
+CONTEXT_CAPACITY_CONFIG="$TMP/explicit.conf" read_context | assert_json '.window_tokens == 321 and .capacity_source == "custom"'
+printf 'custom =\n' > "$TMP/explicit.conf"
+CONTEXT_CAPACITY_CONFIG="$TMP/explicit.conf" read_context | assert_json '.window_tokens == null and .used_percentage == null'
+printf 'selected_model = missing\n' > "$TMP/explicit.conf"
+if CONTEXT_CAPACITY_CONFIG="$TMP/explicit.conf" read_context > "$TMP/out" 2> "$TMP/err"; then exit 1; fi
+[[ -s "$TMP/err" ]]
+[[ -z "$("$BASH_BIN" -c 'source "$1/src/get-context.sh"' bash "$ROOT")" ]]
+printf 'ok: capacity and configuration\n'
+
+# Observable reminder sequences, isolated sessions, and concurrent delivery.
+threshold_config() {
+  jq -n --arg mode "$1" --arg dir "$TMP/state-$1" \
+    '{thresholds:[{percent:50,level:"low",message:"low {percentage}"},{percent:80,level:"high",message:"high {remaining}"}],repeat_mode:$mode,flag_dir:$dir}' > "$PROJECT_CONFIG/config.json"
+}
+remind() {
+  jq -cn --arg sid "$1" --argjson used "$2" --arg segment "$3" \
+    '{session_id:$sid,used_percentage:$used,remaining_percentage:(if $used == null then null else 100-$used end),segment:$segment}' |
+    "$BASH_BIN" "$ROOT/src/check-thresholds.sh" claude
+}
+threshold_config once_per_tier_reset_on_compaction
+[[ "$(remind sequence 85 first)" == $'low 85\nhigh 15' ]]
+[[ -z "$(remind sequence 85 first)" ]]
+[[ -z "$(remind sequence 20 first)" ]]
+[[ "$(remind sequence 55 first)" == 'low 55' ]]
+[[ "$(remind sequence 55 second)" == 'low 55' ]]
+[[ "$(remind other 55 first)" == 'low 55' ]]
+[[ -z "$(remind unknown null first)" ]]
+pids=()
+for i in 1 2 3 4; do
+  remind parallel 55 first > "$TMP/parallel-$i" &
+  pids+=("$!")
+done
+for pid in "${pids[@]}"; do wait "$pid"; done
+[[ "$(cat "$TMP"/parallel-* | wc -l | tr -d ' ')" == 1 ]]
+threshold_config once_per_tier
+[[ "$(remind persistent 55 first)" == 'low 55' ]]
+[[ -z "$(remind persistent 20 first)" ]]
+[[ -z "$(remind persistent 55 second)" ]]
+threshold_config every_turn
+[[ "$(remind repeated 55 first)" == 'low 55' ]]
+[[ "$(remind repeated 55 first)" == 'low 55' ]]
+# Threshold configuration follows the same user/project/explicit precedence.
+cp "$PROJECT_CONFIG/config.json" "$USER_CONFIG/config.json"
+rm "$PROJECT_CONFIG/config.json"
+[[ "$(remind scope 55 first)" == 'low 55' ]]
+jq '.thresholds[0].message = "project"' "$USER_CONFIG/config.json" > "$PROJECT_CONFIG/config.json"
+[[ "$(remind scope 55 first)" == project ]]
+jq '.thresholds[0].message = "explicit"' "$USER_CONFIG/config.json" > "$TMP/thresholds.json"
+[[ "$(CONTEXT_THRESHOLDS_CONFIG="$TMP/thresholds.json" remind scope 55 first)" == explicit ]]
+printf 'ok: reminders and session state\n'
+
+
+# Numeric/configuration edge cases are independent of assistant telemetry.
+for content in 'custom = 0' 'custom = -1' 'custom = 1.5' 'custom = nope' 'custom = 1000000001' 'custom = 1
+custom = 2' 'unexpected = 10' 'selected_model = missing' 'custom'; do
+  printf '%s\n' "$content" > "$TMP/invalid.conf"
+  if context_capacity "$TMP/invalid.conf" > "$TMP/out" 2> "$TMP/err"; then
+    printf 'FAIL: invalid capacity accepted\n' >&2; exit 1
+  fi
+done
+printf 'assistant_limit = small\nlimit.small = 200\n' > "$TMP/limit.conf"
+context_capacity "$TMP/limit.conf" | assert_json '.window_tokens == 200'
+if context_report '{"used_tokens":-1,"measurement_source":"fixture","measurement_basis":"fixture"}' reading json > "$TMP/out" 2> "$TMP/err"; then exit 1; fi
+printf 'ok: shared validation\n'

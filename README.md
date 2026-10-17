@@ -1,7 +1,7 @@
 # Context awareness for agents
 
 Check how much context your agent has accumulated, and give it instructions at
-chosen thresholds. Supports Claude Code. Requires Bash 3.2+ and
+chosen thresholds. Supports Claude Code and Codex. Requires Bash 3.2+ and
 [jq](https://jqlang.github.io/jq/download/).
 
 <p align="center">
@@ -28,23 +28,53 @@ For on-demand readings using the skill only, disable this plugin's hooks.
 
 </details>
 
+<details>
+<summary><strong>Codex</strong></summary>
+
+Run in a terminal:
+
+```sh
+codex plugin marketplace add sdi2200262/context-awareness-for-agents
+codex plugin add context-awareness@context-awareness-for-agents
+```
+
+Restart Codex and select `get-my-context` from its skills picker, or ask it to
+use that skill. Review and trust the plugin's hooks through `/hooks` to enable
+threshold reminders. For on-demand readings only, leave the hooks disabled.
+
+The skill runs a shell command under Codex's normal permissions. Local Codex
+session records are required; Claude's automatic skill preprocessing is not
+available in Codex.
+
+</details>
+
 ## Configure
 
-The plugin works with defaults: **1,000,000-token capacity** (Opus 5.5 preset)
-and a **70% reminder threshold**.
+Claude defaults to **1,000,000-token capacity** (Opus 5.5 preset). Codex starts
+with capacity unset: choose a capacity to enable percentages and reminders.
+Both use a **70% reminder threshold**.
 
 To customize, create or edit these files, or ask your agent to do it.
-Use `~/.claude/context-awareness/` for all projects or
-`<project>/.claude/context-awareness/` for one project. Start from the linked
-templates if the files do not exist:
+Use the appropriate directory for all projects or one project:
 
-- [capacity.conf](src/capacity.conf): choose a model preset, assistant limit, or custom capacity.
-- [config.json](src/config.default.json): choose reminder thresholds, messages, and repeat behavior.
+| Assistant | User settings | Project settings | Capacity template |
+| --- | --- | --- | --- |
+| Claude Code | `~/.claude/context-awareness/` | `.claude/context-awareness/` | [capacity.conf](claude/capacity.conf) |
+| Codex | `~/.codex/context-awareness/` | `.codex/context-awareness/` | [capacity.conf](codex/capacity.conf) |
 
-Project settings override user settings. `CLAUDE_CONFIG_DIR`, when set, replaces
-`~/.claude`. Keep overrides outside the installed plugin so updates preserve them.
+Create `capacity.conf` from its template to choose a model preset, assistant
+limit, or custom capacity. Create [config.json](src/config.default.json) to
+choose reminder thresholds, messages, and repeat behavior.
+
+Project settings override user settings. `CLAUDE_CONFIG_DIR` and `CODEX_HOME`
+replace the respective user roots. `CONTEXT_CAPACITY_CONFIG` and
+`CONTEXT_THRESHOLDS_CONFIG` select explicit files ahead of either scope; if
+exported to both assistants, both use those files. Keep overrides outside the
+installed plugin so updates preserve them. Assistants keep separate session state.
 
 Readings reflect the latest recorded usage; new messages may not yet be counted.
+Claude counts request input and cache tokens; Codex uses its latest recorded
+total including output, or its native estimate following compaction.
 
 ## License
 

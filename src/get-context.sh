@@ -19,7 +19,7 @@ context_config() {
   elif [[ "$name" == config.json ]]; then
     printf '%s\n' "$CONTEXT_SRC/config.default.json"
   else
-    printf '%s\n' "$CONTEXT_SRC/$name"
+    printf '%s\n' "$CONTEXT_INTEGRATION/$name"
   fi
 }
 
@@ -27,8 +27,15 @@ context_report() {
   local measurement="$1" sid="$2" format="$3" file capacity result
   file="$(context_config capacity.conf "${CONTEXT_CAPACITY_CONFIG:-}")" || return
   capacity="$(context_capacity "$file")" || return
-  result="$(jq -cn --argjson measurement "$measurement" --argjson capacity "$capacity" --arg sid "$sid" '
-    $measurement + $capacity + {session_id: $sid} |
+  result="$(jq -cen --argjson measurement "$measurement" --argjson capacity "$capacity" --arg sid "$sid" --arg assistant "$CONTEXT_ASSISTANT" '
+    if ($measurement | type) != "object"
+      or ($measurement.used_tokens != null and
+          ($measurement.used_tokens | type != "number" or . < 0 or floor != .))
+      or ($measurement.measurement_source | type) != "string"
+      or ($measurement.measurement_basis | type) != "string"
+      or ($measurement.segment != null and ($measurement.segment | type) != "string")
+    then error("invalid context measurement") else . end |
+    $measurement + $capacity + {assistant: $assistant, session_id: $sid} |
     .used_percentage = (if .used_tokens != null and .window_tokens != null
                        then (.used_tokens / .window_tokens * 100 | floor) else null end) |
     .remaining_percentage = (if .used_percentage != null then ([0, 100 - .used_percentage] | max) else null end)')" || return
@@ -40,7 +47,7 @@ context_report() {
       elif .window_tokens == null then "Context usage: \(.used_tokens) tokens; capacity unconfigured."
       else "Context usage: \(.used_percentage)% used (\(.used_tokens) / \(.window_tokens) tokens), \(.remaining_percentage)% remaining."
       end,
-      "Latest recorded reading; source: \(.measurement_source). Model: \(.model // "unknown"). Capacity: \(.window_tokens // "unconfigured") (\(.capacity_source))."' <<< "$result"
+      "Latest recorded reading; source: \(.measurement_source); basis: \(.measurement_basis). Model: \(.model // "unknown"). Capacity: \(.window_tokens // "unconfigured") (\(.capacity_source))."' <<< "$result"
   fi
 }
 
@@ -86,22 +93,25 @@ end
 
 context_scope() {
   CONTEXT_SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-  case "$1" in
-    claude)
-      CONTEXT_PROJECT_CONFIG="${CLAUDE_PROJECT_DIR:-$PWD}/.claude/context-awareness"
-      CONTEXT_USER_CONFIG="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/context-awareness"
-      ;;
-    *) context_error "unsupported assistant: $1"; return 2 ;;
-  esac
+  [[ "$1" =~ ^[a-z][a-z0-9-]*$ ]] || { context_error "invalid assistant: $1"; return 2; }
+  CONTEXT_ASSISTANT="$1"
+  CONTEXT_INTEGRATION="$CONTEXT_SRC/../$CONTEXT_ASSISTANT"
+  [[ -f "$CONTEXT_INTEGRATION/integration.sh" ]] || {
+    context_error "unsupported assistant: $1"; return 2;
+  }
+  source "$CONTEXT_INTEGRATION/integration.sh"
+  context_adapter_scope
 }
 
 context_main() {
   set -euo pipefail
   local assistant="${1:-}" sid="${2:-}" format=text transcript='' measurement
-  [[ $# -ge 2 ]] || { context_error 'usage: get-context.sh claude SESSION_ID [--json] [--transcript PATH]'; return 2; }
+  [[ $# -ge 1 ]] || { context_error 'usage: get-context.sh ASSISTANT [SESSION_ID] [--json] [--transcript PATH]'; return 2; }
   context_scope "$assistant"
+  shift
+  sid="$(context_adapter_session)"
+  if [[ $# -gt 0 && "$1" != --* ]]; then sid="$1"; shift; fi
   context_session "$sid"
-  shift 2
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --json) format=json; shift ;;
@@ -111,7 +121,7 @@ context_main() {
       *) context_error "unknown argument: $1"; return 2 ;;
     esac
   done
-  measurement="$(bash "$CONTEXT_SRC/../$assistant/read-context.sh" "$sid" "$transcript")"
+  measurement="$(context_adapter_read "$sid" "$transcript")"
   context_report "$measurement" "$sid" "$format"
 }
 

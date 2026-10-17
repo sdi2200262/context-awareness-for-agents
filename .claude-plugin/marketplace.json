@@ -3,7 +3,7 @@
   "owner": {
     "name": "CobuterMan"
   },
-  "description": "On-demand context readings and configurable reminders for Claude Code.",
+  "description": "On-demand context readings and configurable reminders for Claude Code and Codex.",
   "plugins": [
     {
       "name": "context-awareness",

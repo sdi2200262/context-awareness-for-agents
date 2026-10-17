@@ -1,0 +1,11 @@
+{
+  "name": "context-awareness",
+  "description": "On-demand context readings and configurable threshold instructions for Codex.",
+  "version": "2.2.0",
+  "author": {"name": "CobuterMan"},
+  "homepage": "https://github.com/sdi2200262/context-awareness-for-agents",
+  "repository": "https://github.com/sdi2200262/context-awareness-for-agents",
+  "license": "MIT",
+  "skills": ["./codex/skills/"],
+  "hooks": "./codex/hooks.json"
+}
