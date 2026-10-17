@@ -107,12 +107,15 @@ for assistant in claude codex; do
   # A malformed state base is rejected before measurement too.
   jq '.flag_dir = "relative/state"' "$project/config.json" > "$TMP/relative.json"
   CONTEXT_THRESHOLDS_CONFIG="$TMP/relative.json" check_error
-  # Enabling hooks does not merge thresholds from the disabled user config.
-  for config in '{}' '{"hooks":true}' '{"hooks":true,"thresholds":null}'; do
+  # Omitted thresholds use the bundled ones; an invalid value is still an error.
+  for config in '{}' '{"hooks":true}'; do
     printf '%s\n' "$config" > "$project/config.json"
-    check_error
-    [[ "$(cat "$TMP/err")" == *'enabled reminders require a thresholds array'* ]]
+    CONTEXT_THRESHOLDS_CONFIG="$project/config.json" "$BASH_BIN" -c 'source "$1/src/check-thresholds.sh"; context_scope "$2"; context_threshold_config' bash "$PACKAGE" "$assistant" |
+      assert_json '.thresholds[0].level == "warning" and .thresholds[0].percent == 70'
   done
+  printf '{"hooks":true,"thresholds":null}\n' > "$project/config.json"
+  check_error
+  [[ "$(cat "$TMP/err")" == *'thresholds must be an array'* ]]
   printf '{"hooks":false,"thresholds":"unused","repeat_mode":"unused"}\n' > "$project/config.json"
   check_skip
   printf 'not a measurement\n' | CONTEXT_THRESHOLDS_CONFIG="$project/config.json" "$BASH_BIN" "$PACKAGE/src/check-thresholds.sh" "$assistant" > "$TMP/out"

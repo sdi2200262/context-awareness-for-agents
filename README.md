@@ -127,8 +127,7 @@ include every setting you need.
 
 Because the project file takes precedence, a project can turn reminders off
 while they are on globally, or on while they are off, without reinstalling. To
-turn them on, the project's `config.json` needs its own thresholds, such as the
-contents of `src/config.default.json`; `{"hooks": true}` alone is incomplete.
+turn them on with the default thresholds, use `{"hooks": true}`.
 
 </details>
 

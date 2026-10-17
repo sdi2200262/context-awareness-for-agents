@@ -5,13 +5,16 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/get-context.sh"
 context_threshold_config() {
   local file
   file="$(context_config config.json "${CONTEXT_THRESHOLDS_CONFIG:-}")" || return
-  jq -ce '
+  # A config that omits thresholds uses the bundled ones, so {"hooks": true}
+  # turns reminders on with the defaults.
+  jq -ce --slurpfile defaults "$CONTEXT_SRC/config.default.json" '
     if type != "object" then error("threshold config must be an object")
-    elif has("hooks") and (.hooks | type) != "boolean"
+    elif has("thresholds") | not then .thresholds = $defaults[0].thresholds else . end |
+    if has("hooks") and (.hooks | type) != "boolean"
       then error("hooks must be true or false")
     elif .hooks == false then .
     elif (.thresholds | type) != "array"
-      then error("enabled reminders require a thresholds array; start from src/config.default.json, or use hooks: false for skill-only mode")
+      then error("thresholds must be an array; omit it to use the defaults")
     elif (.thresholds | length) > 0 and
       ((.flag_dir // "/tmp") | type != "string" or startswith("/") == false)
       then error("flag_dir must be an absolute directory path")
