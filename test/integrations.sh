@@ -87,6 +87,16 @@ printf 'ok: Claude hooks and skill share the native project root after cd\n'
 # CLAUDE_SESSION_ID text placeholder. The manual reader accepts that fallback.
 CLAUDE_SESSION_ID='' CLAUDE_CODE_SESSION_ID=reading "$BASH_BIN" "$PACKAGE/src/get-context.sh" claude --json |
   assert_json '.session_id == "reading" and .used_tokens == 60'
+# Codex discovers a repository root when its session or tools start below it.
+mkdir -p "$TMP/codex repo/.git" "$TMP/codex repo/sub/dir" "$TMP/codex repo/.codex/context-awareness"
+printf 'custom = 456\n' > "$TMP/codex repo/.codex/context-awareness/capacity.conf"
+CONTEXT_PROJECT_DIR="$TMP/codex repo/sub/dir" "$BASH_BIN" "$PACKAGE/src/get-context.sh" codex --json |
+  assert_json '.window_tokens == 456'
+printf 'custom = 789\n' > "$TMP/codex repo/sub/dir/capacity.conf"
+mkdir -p "$TMP/codex repo/sub/dir/.codex/context-awareness"
+mv "$TMP/codex repo/sub/dir/capacity.conf" "$TMP/codex repo/sub/dir/.codex/context-awareness/"
+"$BASH_BIN" "$PACKAGE/src/get-context.sh" codex --project "$TMP/codex repo/sub/dir" --json |
+  assert_json '.window_tokens == 789'
 if "$BASH_BIN" "$ROOT/src/get-context.sh" '../claude' reading > "$TMP/out" 2> "$TMP/err"; then exit 1; fi
 if CODEX_THREAD_ID='' "$BASH_BIN" "$ROOT/src/get-context.sh" codex > "$TMP/out" 2> "$TMP/err"; then exit 1; fi
 [[ -z "$(find "$PACKAGE" -type l)" ]]
