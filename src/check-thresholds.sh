@@ -10,6 +10,11 @@ context_threshold_config() {
     elif has("hooks") and (.hooks | type) != "boolean"
       then error("hooks must be true or false")
     elif .hooks == false then .
+    elif (.thresholds | type) != "array"
+      then error("enabled reminders require a thresholds array; start from src/config.default.json, or use hooks: false for skill-only mode")
+    elif (.thresholds | length) > 0 and
+      ((.flag_dir // "/tmp") | type != "string" or startswith("/") == false)
+      then error("flag_dir must be an absolute directory path")
     else
       (.repeat_mode // "once_per_tier_reset_on_compaction") as $mode |
       if (["once_per_tier", "once_per_tier_reset_on_compaction", "every_turn"] | index($mode)) != null

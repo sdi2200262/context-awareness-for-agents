@@ -104,6 +104,15 @@ for assistant in claude codex; do
     check_error
   done
   input="$saved_input"
+  # A malformed state base is rejected before measurement too.
+  jq '.flag_dir = "relative/state"' "$project/config.json" > "$TMP/relative.json"
+  CONTEXT_THRESHOLDS_CONFIG="$TMP/relative.json" check_error
+  # Enabling hooks does not merge thresholds from the disabled user config.
+  for config in '{}' '{"hooks":true}' '{"hooks":true,"thresholds":null}'; do
+    printf '%s\n' "$config" > "$project/config.json"
+    check_error
+    [[ "$(cat "$TMP/err")" == *'enabled reminders require a thresholds array'* ]]
+  done
   printf '{"hooks":false,"thresholds":"unused","repeat_mode":"unused"}\n' > "$project/config.json"
   check_skip
   printf 'not a measurement\n' | CONTEXT_THRESHOLDS_CONFIG="$project/config.json" "$BASH_BIN" "$PACKAGE/src/check-thresholds.sh" "$assistant" > "$TMP/out"
