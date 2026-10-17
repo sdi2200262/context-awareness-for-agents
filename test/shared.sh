@@ -80,7 +80,13 @@ touch -t 200001010000 "$lock_base/file.json.lock"
 [[ "$(remind file 55 first)" == 'low 55' && ! -e "$lock_base/file.json.lock" ]]
 [[ -z "$(remind live 55 first)" && -d "$lock_base/live.json.lock" ]]
 rmdir "$lock_base/live.json.lock"
-printf 'ok: stale lock recovery\n'
+# A state root planted as a symlink is rejected without writing to its target.
+mkdir "$TMP/unsafe-base" "$TMP/unsafe-target"
+ln -s "$TMP/unsafe-target" "$TMP/unsafe-base/context-awareness-$(id -u)"
+jq --arg dir "$TMP/unsafe-base" '.flag_dir = $dir' "$PROJECT_CONFIG/config.json" > "$TMP/unsafe.json"
+if CONTEXT_THRESHOLDS_CONFIG="$TMP/unsafe.json" remind unsafe 55 first > "$TMP/out" 2> "$TMP/err"; then exit 1; fi
+[[ -z "$(ls -A "$TMP/unsafe-target")" && -s "$TMP/err" ]]
+printf 'ok: stale lock recovery and owned state paths\n'
 
 
 # Numeric/configuration edge cases are independent of assistant telemetry.

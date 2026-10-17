@@ -50,8 +50,12 @@ context_check_thresholds() (
   context_session "$SID"
   jq -e '.used_percentage != null' <<< "$READING" >/dev/null || exit 0
   BASE="$(jq -er '.flag_dir // "/tmp" | select(type == "string" and length > 0)' <<< "$CONFIG")"
-  STATE_DIR="$BASE/context-awareness-$(id -u)/$CONTEXT_ASSISTANT"
-  (umask 077; mkdir -p "$STATE_DIR")
+  STATE_ROOT="$BASE/context-awareness-$(id -u)"
+  STATE_DIR="$STATE_ROOT/$CONTEXT_ASSISTANT"
+  # Another local user could create these paths first in a shared /tmp.
+  [[ ! -L "$STATE_ROOT" ]] && (umask 077; mkdir -p "$STATE_DIR") &&
+    [[ -O "$STATE_ROOT" && -O "$STATE_DIR" ]] ||
+    { context_error "state directory must belong to the current user: $STATE_ROOT"; exit 1; }
   STATE="$STATE_DIR/$SID.json"
   LOCK="$STATE.lock"
   context_lock_acquire "$LOCK" || exit 0
