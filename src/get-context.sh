@@ -129,8 +129,10 @@ context_main() {
         [[ $# -gt 1 ]] || { context_error '--transcript needs a path'; return 2; }
         transcript="$2"; shift 2 ;;
       --project)
-        [[ $# -gt 1 && -d "$2" ]] || { context_error '--project needs an existing directory'; return 2; }
-        project="$(cd "$2" && pwd)"; shift 2 ;;
+        # An empty value, such as an unset native variable, means not given.
+        [[ $# -gt 1 && ( -z "$2" || -d "$2" ) ]] || { context_error '--project needs an existing directory'; return 2; }
+        if [[ -n "$2" ]]; then project="$(cd "$2" && pwd)"; fi
+        shift 2 ;;
       *) context_error "unknown argument: $1"; return 2 ;;
     esac
   done

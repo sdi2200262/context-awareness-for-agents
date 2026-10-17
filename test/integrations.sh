@@ -66,6 +66,8 @@ done
 printf 'custom = 100\n' > "$CONTEXT_PROJECT_DIR/.claude/context-awareness/capacity.conf"
 command="$(claude_skill_command)"
 "$BASH_BIN" -c "$command --json" | assert_json '.used_tokens == 60 and .window_tokens == 100'
+# An unset project root falls back instead of failing the skill.
+CLAUDE_PROJECT_DIR='' "$BASH_BIN" -c "$(CLAUDE_PROJECT_DIR='' claude_skill_command) --json" | assert_json '.used_tokens == 60'
 # Claude's native root stays stable when a tool changes cwd, including a
 # directory with conflicting settings. Exercise the registered hook and skill.
 CHILD="$CONTEXT_PROJECT_DIR/child project"
