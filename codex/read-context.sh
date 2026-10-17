@@ -37,7 +37,12 @@ def reading:
    measured_at: ($record.timestamp // null)};
 first(foreach (inputs, null) as $line
   ({event: null, model: null, segment: "initial", done: false};
-   if $line == null then .done = true else
+   if $line == null then .done = true
+   # Native boundary names are literal ASCII. Avoid decoding old tool payloads
+   # once the latest reading and model are known.
+   elif .event != null and .model != null and
+     ($line | contains("compacted") or contains("thread_rolled_back") | not) then .
+   else
      ($line | fromjson? // null) as $record |
      if ($record | type) != "object" then .
      elif $record.type == "compacted" then
