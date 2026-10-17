@@ -1,46 +1,53 @@
 # Adding an assistant
 
-Keep assistant directories beside `src/`. Each integration contains:
+Keep integrations beside `src/`:
 
-- `integration.sh`: define `context_adapter_scope` (project/user configuration
-  directories), `context_adapter_session` (current native session ID), and
-  `context_adapter_read SESSION_ID PATH_HINT` (one normalized JSON measurement).
-- `read-context.sh`: parse that assistant's recorded usage. Locate the exact
-  session when the optional path hint is empty; never pick the newest session.
-- `capacity.conf`: explicit default selections and relevant presets.
-- Native skill, hook registration and plugin metadata as supported by the host.
+| File | Responsibility |
+| --- | --- |
+| `integration.sh` | Define `context_adapter_scope [PROJECT_DIR]` (project/user config paths), `context_adapter_session` (native session ID), and `context_adapter_read SESSION_ID PATH_HINT` (normalized measurement). |
+| `read-context.sh` | Parse native usage for the exact session. Resolve it by session ID when the optional path hint is empty. |
+| `capacity.conf` | Explicit defaults and presets, independent of telemetry. |
+| Native registration | Skills, hooks and plugin metadata supported by the host. |
 
 The reader returns `used_tokens` (nonnegative integer or null), `model`,
 `measurement_source`, `measurement_basis`, `measured_at`, and `segment`.
-Use null for unknown readings. Give each compaction segment a stable string
-identifier. Do not revive readings across a boundary when no new count exists.
-Document whether a native count includes cached input, output or estimates.
-Capacity selection is separate from telemetry.
+Use null for unknown readings and stable string identifiers for compaction
+segments. Return null after a boundary until a new count is available. Document
+cache, output and estimate accounting.
 
-`src/get-context.sh` owns configuration precedence, capacity validation,
-percentages and reporting. `src/check-thresholds.sh` owns reminder behavior and
-locks, isolated by assistant and session. `src/context-awareness.sh` provides
-the JSON `PreToolUse`/`additionalContext` transport used by Claude and Codex;
-an assistant with a different hook protocol should add only its own transport.
-The skill and hooks must identify their assistant explicitly and use the same
-reader. Native paths, accounting and invocation capabilities belong to the
-integration. A reader does not require hook or skill-preprocessing support.
+Reuse the shared engine:
 
-All hook transports must resolve and validate reminder configuration before
-reading native usage or capacity. Use `context_threshold_config` and
-`context_hooks_enabled` from `src/check-thresholds.sh`: `hooks: false` or an empty
-threshold list skips monitoring while the skill remains available. Pass the same
-validated JSON snapshot to `context_check_thresholds`; do not reload configuration
-after measuring. Existing reminder state is preserved while monitoring is off.
-Configuration uses explicit > project > user > default whole-file selection.
+| Module | Responsibility |
+| --- | --- |
+| `src/get-context.sh` | Config precedence, capacity validation, percentages and reporting. |
+| `src/check-thresholds.sh` | Reminder evaluation and locks, isolated by assistant and session. |
+| `src/context-awareness.sh` | Claude/Codex `PreToolUse` / `additionalContext` transport. Add a transport for other protocols. |
 
-Run `bash test/test.sh`. Shared calculations and reminder sequences run once,
-using normalized readings. Add native fixtures to `test/readers.sh` and extend
-`test/integrations.sh` for configuration, package discovery and transports.
-Test two assistants in the same project with different settings, and the same
-session ID across assistants, to catch accidental coupling.
+Use `context_format_reading` for the skill's text output and hook summaries.
+Every delivered reminder includes usage, assistant, configured and recorded
+models, capacity config path, and guidance to correct a confirmed mismatch.
 
-Before claiming support, also install the package in a temporary project and
-test through the assistant's native interface: skill invocation, permissions,
-independently checked usage, reminder delivery, compaction and resumption.
-Fixtures and package-path checks do not establish native runtime behavior.
+Skills and hooks must identify their assistant and share its reader. Keep native
+paths, accounting and invocation in the integration; hook and skill preprocessing
+support are optional.
+
+Use the same project scope for skills and hooks. Claude uses the stable
+`CLAUDE_PROJECT_DIR` root; the skill passes its substituted value with `--project`
+because the shell may lack that environment variable. Codex searches upward from
+the working directory to the Git root for settings. Adapters must honor an
+explicit `PROJECT_DIR` argument before their native defaults.
+
+Configuration selects whole files in this order: explicit, project, user, default.
+Hook transports must call `context_threshold_config` and `context_hooks_enabled`
+before reading usage or capacity. `hooks: false` or empty thresholds skip
+monitoring, preserving state and skill access. Pass the same validated snapshot
+to `context_check_thresholds` after measuring.
+
+Run `bash test/test.sh`. Add native fixtures to `test/readers.sh`, integration
+coverage to `test/integrations.sh`, and mode coverage to `test/modes.sh`.
+Verify separate settings and state for assistants sharing a project/session ID;
+reuse shared calculation and reminder tests.
+
+Before claiming support, install in a temporary project and test native skill
+invocation, permissions, independently checked usage, reminders, compaction and
+resumption.
