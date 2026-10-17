@@ -10,6 +10,15 @@ unset CONTEXT_CAPACITY_CONFIG CONTEXT_THRESHOLDS_CONFIG CLAUDE_SESSION_ID CODEX_
 mkdir -p "$CLAUDE_CONFIG_DIR/projects/example" "$CODEX_HOME/sessions/2026/10/17" \
   "$CONTEXT_PROJECT_DIR/.claude/context-awareness" "$CONTEXT_PROJECT_DIR/.codex/context-awareness"
 assert_json() { jq -e "$1" >/dev/null || { printf 'FAIL: %s\n' "$1" >&2; exit 1; }; }
+# Simulate Claude's text substitutions, independently of the shell environment.
+claude_skill_command() {
+  local command
+  command="$(sed -n 's/^!`\(.*\)`$/\1/p' "$PACKAGE/claude/skills/get-my-context/SKILL.md")"
+  command="${command//\$\{CLAUDE_PLUGIN_ROOT\}/$PACKAGE}"
+  command="${command//\$\{CLAUDE_SESSION_ID\}/reading}"
+  command="${command//\$\{CLAUDE_PROJECT_DIR\}/$CLAUDE_PROJECT_DIR}"
+  printf '%s\n' "$command"
+}
 request() {
   jq -cn --argjson input "$1" --argjson creation "$2" --argjson cache "$3" \
     '{type:"assistant",message:{model:"fixture",usage:{input_tokens:$input,cache_creation_input_tokens:$creation,cache_read_input_tokens:$cache,output_tokens:9999}}}'

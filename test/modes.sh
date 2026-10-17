@@ -63,7 +63,7 @@ for assistant in claude codex; do
   "$BASH_BIN" "$PACKAGE/src/get-context.sh" "$assistant" --json | assert_json '.used_tokens == 60 and .used_percentage == 60'
   [[ -s "$CONTEXT_READER_CALLS" ]]
   if [[ "$assistant" == claude ]]; then
-    skill_command="$(sed -n 's/^!`\(.*\)`$/\1/p' "$PACKAGE/claude/skills/get-my-context/SKILL.md")"
+    skill_command="$(claude_skill_command)"
     "$BASH_BIN" -c "$skill_command --json" | assert_json '.used_tokens == 60'
   fi
   # Global skill-only -> project both; project config replaces the user file.

@@ -6,7 +6,7 @@ allowed-tools: Bash(bash "${CLAUDE_PLUGIN_ROOT}/src/get-context.sh" claude *)
 
 # Context usage
 
-!`bash "${CLAUDE_PLUGIN_ROOT}/src/get-context.sh" claude "${CLAUDE_SESSION_ID}"`
+!`bash "${CLAUDE_PLUGIN_ROOT}/src/get-context.sh" claude "${CLAUDE_SESSION_ID}" --project "${CLAUDE_PROJECT_DIR}"`
 
 Report the latest recorded reading concisely. Explain its source or configuration
 only when needed. It excludes generated output and does

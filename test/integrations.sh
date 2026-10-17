@@ -52,8 +52,41 @@ done
 [[ -f "$TMP/state/context-awareness-$(id -u)/codex/reading.json" ]]
 # Claude's skill still preprocesses directly without a model shell call.
 printf 'custom = 100\n' > "$CONTEXT_PROJECT_DIR/.claude/context-awareness/capacity.conf"
-command="$(sed -n 's/^!`\(.*\)`$/\1/p' "$PACKAGE/claude/skills/get-my-context/SKILL.md")"
+command="$(claude_skill_command)"
 "$BASH_BIN" -c "$command --json" | assert_json '.used_tokens == 60 and .window_tokens == 100'
+# Claude's native root stays stable when a tool changes cwd, including a
+# directory with conflicting settings. Exercise the registered hook and skill.
+CHILD="$CONTEXT_PROJECT_DIR/child project"
+mkdir -p "$CHILD/.claude/context-awareness"
+printf 'custom = 20\n' > "$CHILD/.claude/context-awareness/capacity.conf"
+cp "$ROOT/src/config.default.json" "$CHILD/.claude/context-awareness/config.json"
+printf '{"hooks":false}\n' > "$CONTEXT_PROJECT_DIR/.claude/context-awareness/config.json"
+hook="$(jq -r '.hooks.PreToolUse[0].hooks[0].command' "$PACKAGE/claude/hooks.json")"
+input="$(jq -cn --arg cwd "$CHILD" --arg path "$CLAUDE_LOG" '{session_id:"reading",cwd:$cwd,transcript_path:$path}')"
+[[ -z "$(CONTEXT_PROJECT_DIR="$CHILD" "$BASH_BIN" -c "$hook" <<< "$input")" ]]
+(
+  cd "$CHILD"
+  unset CLAUDE_PROJECT_DIR CLAUDE_SESSION_ID CLAUDE_PLUGIN_ROOT CONTEXT_PROJECT_DIR
+  "$BASH_BIN" -c "$command --json"
+) | assert_json '.used_tokens == 60 and .window_tokens == 100 and .used_percentage == 60'
+jq -cn --arg dir "$TMP/root-state" \
+  '{flag_dir:$dir,repeat_mode:"every_turn",thresholds:[{percent:0,level:"root",message:"root reminder"}]}' \
+  > "$CONTEXT_PROJECT_DIR/.claude/context-awareness/config.json"
+printf '{"hooks":false}\n' > "$CHILD/.claude/context-awareness/config.json"
+CONTEXT_PROJECT_DIR="$CHILD" "$BASH_BIN" -c "$hook" <<< "$input" |
+  assert_json '.hookSpecificOutput.additionalContext == "root reminder"'
+# Outside Claude, retain explicit-directory and working-directory fallbacks.
+(
+  cd "$CHILD"
+  CLAUDE_PROJECT_DIR='' CONTEXT_PROJECT_DIR='' "$BASH_BIN" "$PACKAGE/src/get-context.sh" claude reading --json
+) | assert_json '.window_tokens == 20'
+CLAUDE_PROJECT_DIR='' CONTEXT_PROJECT_DIR="$CHILD" "$BASH_BIN" "$PACKAGE/src/get-context.sh" claude reading --json |
+  assert_json '.window_tokens == 20'
+printf 'ok: Claude hooks and skill share the native project root after cd\n'
+# Native Bash sessions expose CLAUDE_CODE_SESSION_ID rather than the skill's
+# CLAUDE_SESSION_ID text placeholder. The manual reader accepts that fallback.
+CLAUDE_SESSION_ID='' CLAUDE_CODE_SESSION_ID=reading "$BASH_BIN" "$PACKAGE/src/get-context.sh" claude --json |
+  assert_json '.session_id == "reading" and .used_tokens == 60'
 if "$BASH_BIN" "$ROOT/src/get-context.sh" '../claude' reading > "$TMP/out" 2> "$TMP/err"; then exit 1; fi
 if CODEX_THREAD_ID='' "$BASH_BIN" "$ROOT/src/get-context.sh" codex > "$TMP/out" 2> "$TMP/err"; then exit 1; fi
 [[ -z "$(find "$PACKAGE" -type l)" ]]
@@ -63,7 +96,7 @@ printf 'ok: assistant coexistence, native configuration and installed transports
 mkdir -p "$PACKAGE/fixture-agent"
 cat > "$PACKAGE/fixture-agent/integration.sh" <<'ADAPTER'
 context_adapter_scope() {
-  CONTEXT_PROJECT_CONFIG="$CONTEXT_PROJECT_DIR/.fixture/context-awareness"
+  CONTEXT_PROJECT_CONFIG="${1:-$CONTEXT_PROJECT_DIR}/.fixture/context-awareness"
   CONTEXT_USER_CONFIG="$CONTEXT_PROJECT_DIR/.fixture-user/context-awareness"
 }
 context_adapter_session() { printf '%s\n' fixture-session; }

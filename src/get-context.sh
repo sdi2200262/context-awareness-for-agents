@@ -100,27 +100,30 @@ context_scope() {
     context_error "unsupported assistant: $1"; return 2;
   }
   source "$CONTEXT_INTEGRATION/integration.sh"
-  context_adapter_scope
+  context_adapter_scope "${2:-}"
 }
 
 context_main() {
   set -euo pipefail
-  local assistant="${1:-}" sid="${2:-}" format=text transcript='' measurement
-  [[ $# -ge 1 ]] || { context_error 'usage: get-context.sh ASSISTANT [SESSION_ID] [--json] [--transcript PATH]'; return 2; }
-  context_scope "$assistant"
+  local assistant="${1:-}" sid='' format=text transcript='' project='' measurement
+  [[ $# -ge 1 ]] || { context_error 'usage: get-context.sh ASSISTANT [SESSION_ID] [--json] [--transcript PATH] [--project DIR]'; return 2; }
   shift
-  sid="$(context_adapter_session)"
   if [[ $# -gt 0 && "$1" != --* ]]; then sid="$1"; shift; fi
-  context_session "$sid"
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --json) format=json; shift ;;
       --transcript)
         [[ $# -gt 1 ]] || { context_error '--transcript needs a path'; return 2; }
         transcript="$2"; shift 2 ;;
+      --project)
+        [[ $# -gt 1 && -d "$2" ]] || { context_error '--project needs an existing directory'; return 2; }
+        project="$(cd "$2" && pwd)"; shift 2 ;;
       *) context_error "unknown argument: $1"; return 2 ;;
     esac
   done
+  context_scope "$assistant" "$project"
+  if [[ -z "$sid" ]]; then sid="$(context_adapter_session)"; fi
+  context_session "$sid"
   measurement="$(context_adapter_read "$sid" "$transcript")"
   context_report "$measurement" "$sid" "$format"
 }
