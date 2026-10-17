@@ -8,6 +8,8 @@ request 2 9507 25892 >> "$TRANSCRIPT"
 request 2 9507 25892 >> "$TRANSCRIPT"
 printf '%s\n' '{"type":"assistant","isSidechain":true,"message":{"usage":{"input_tokens":999999}}}' '{partial' >> "$TRANSCRIPT"
 read_context | assert_json '.used_tokens == 35401 and .measurement_source == "request"'
+printf '%s\n' '{"type":"assistant","message":{"model":"<synthetic>","usage":{"input_tokens":0,"output_tokens":0}}}' >> "$TRANSCRIPT"
+read_context | assert_json '.used_tokens == 35401 and .model == "fixture"'
 printf '%s\n' '{"type":"system","subtype":"compact_boundary","uuid":"boundary-one","compactMetadata":{"postTokens":4773}}' >> "$TRANSCRIPT"
 read_context | assert_json '.used_tokens == 4773 and .measurement_source == "compaction"'
 request 10 20 30 >> "$TRANSCRIPT"

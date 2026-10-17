@@ -31,7 +31,8 @@ first(foreach (inputs, null) as $line
   ({event: null, segment: "initial", done: false};
    if $line == null then .done = true else
      ($line | fromjson? // null) as $record |
-     if ($record | type) != "object" or $record.isSidechain == true then .
+     if ($record | type) != "object" or $record.isSidechain == true
+       or ($record.type == "assistant" and $record.message.model == "<synthetic>") then .
      elif $record.type == "system" and $record.subtype == "compact_boundary" then
        .segment = ($record.uuid // $record.timestamp // ($record | tojson)) |
        .done = true |
