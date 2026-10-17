@@ -11,6 +11,9 @@ and jq.
 
 ## Install
 
+Install the plugin in each assistant you use. Each install adds the
+`get-my-context` skill and a reminder hook from the same marketplace.
+
 <details>
 <summary><strong>Claude Code</strong></summary>
 
