@@ -27,7 +27,7 @@ context_report() {
   local measurement="$1" sid="$2" format="$3" file capacity result
   file="$(context_config capacity.conf "${CONTEXT_CAPACITY_CONFIG:-}")" || return
   capacity="$(context_capacity "$file")" || return
-  result="$(jq -cen --argjson measurement "$measurement" --argjson capacity "$capacity" --arg sid "$sid" --arg assistant "$CONTEXT_ASSISTANT" '
+  result="$(jq -cen --argjson measurement "$measurement" --argjson capacity "$capacity" --arg sid "$sid" --arg assistant "$CONTEXT_ASSISTANT" --arg config "$file" '
     if ($measurement | type) != "object"
       or ($measurement.used_tokens != null and
           ($measurement.used_tokens | type != "number" or . < 0 or floor != .))
@@ -35,20 +35,28 @@ context_report() {
       or ($measurement.measurement_basis | type) != "string"
       or ($measurement.segment != null and ($measurement.segment | type) != "string")
     then error("invalid context measurement") else . end |
-    $measurement + $capacity + {assistant: $assistant, session_id: $sid} |
+    $measurement + $capacity + {assistant: $assistant, session_id: $sid, capacity_config: $config} |
     .used_percentage = (if .used_tokens != null and .window_tokens != null
                        then (.used_tokens / .window_tokens * 100 | floor) else null end) |
-    .remaining_percentage = (if .used_percentage != null then ([0, 100 - .used_percentage] | max) else null end)')" || return
+    .remaining_percentage = (if .used_percentage != null then ([0, 100 - .used_percentage] | max) else null end) |
+    .remaining_tokens = (if .used_tokens != null and .window_tokens != null
+                         then ([0, .window_tokens - .used_tokens] | max) else null end)')" || return
   if [[ "$format" == json ]]; then
     printf '%s\n' "$result"
   else
-    jq -r '
+    context_format_reading "$result"
+  fi
+}
+
+# Shared by the skill command and every delivered hook reminder.
+context_format_reading() {
+  jq -r '
       if .used_tokens == null then "Context usage: unavailable for the current segment."
       elif .window_tokens == null then "Context usage: \(.used_tokens) tokens; capacity unconfigured."
-      else "Context usage: \(.used_percentage)% used (\(.used_tokens) / \(.window_tokens) tokens), \(.remaining_percentage)% remaining."
-      end,
-      "Latest recorded reading; source: \(.measurement_source); basis: \(.measurement_basis). Model: \(.model // "unknown"). Capacity: \(.window_tokens // "unconfigured") (\(.capacity_source))."' <<< "$result"
-  fi
+      else "Context usage: \(.used_percentage)% used (\(.used_tokens) / \(.window_tokens) tokens), \(.remaining_percentage)% remaining (\(.remaining_tokens) tokens)."
+      end + (if .measured_at != null then " Recorded at \(.measured_at)." else "" end),
+      "Assistant: \(.assistant). Capacity model preset: \(.configured_model // "none") (\(.capacity_source)); assistant limit: \(.assistant_limit // "none"). Recorded model: \(.model // "unknown").",
+      "Capacity config: \(.capacity_config)"' <<< "$1"
 }
 
 context_capacity() {
@@ -87,7 +95,12 @@ else
   {window_tokens: ([$model, $limit] | map(select(. != null)) | if length > 0 then min else null end),
    capacity_source: (if $limit != null and ($model == null or $limit < $model) then "assistant_limit"
                      elif $model != null then "model_preset" else "unconfigured" end)}
-end
+end + {
+  configured_model: (if (.selected_model // "") == "" then null else .selected_model end),
+  model_window_tokens: ((.["model." + (.selected_model // "")] // null) | if . == null then null else tonumber end),
+  assistant_limit: (if (.assistant_limit // "") == "" then null else .assistant_limit end),
+  assistant_limit_tokens: ((.["limit." + (.assistant_limit // "")] // null) | if . == null then null else tonumber end)
+}
 ' "$1"
 }
 

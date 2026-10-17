@@ -34,6 +34,12 @@ codex_request 2000 1500 30 2030 >> "$TRANSCRIPT"
 codex_request 2000 1500 30 2030 >> "$TRANSCRIPT"
 printf '%s\n' '{"type":"event_msg","payload":{"type":"token_count","info":null}}' '{partial' >> "$TRANSCRIPT"
 read_context | assert_json '.used_tokens == 2030 and .measurement_source == "request" and .model == "fixture-codex" and .window_tokens == 475000 and .capacity_source == "assistant_limit" and .measurement_basis == "codex_latest_total"'
+# Changing the native model does not silently change the chosen capacity.
+printf '%s\n' '{"type":"turn_context","payload":{"model":"gpt-6-astra"}}' >> "$TRANSCRIPT"
+read_context | assert_json '.model == "gpt-6-astra" and .window_tokens == 475000'
+sed 's/^assistant_limit = .*/assistant_limit = codex-272k/' "$ROOT/codex/capacity.conf" > "$TMP/codex-272k.conf"
+CONTEXT_CAPACITY_CONFIG="$TMP/codex-272k.conf" read_context |
+  assert_json '.model == "gpt-6-astra" and .window_tokens == 258400 and .capacity_source == "assistant_limit"'
 printf '%s\n' '{"type":"compacted","timestamp":"boundary-one","payload":{"message":"summary"}}' >> "$TRANSCRIPT"
 read_context | assert_json '.used_tokens == null and .segment == "boundary-one"'
 codex_request 0 0 0 4773 >> "$TRANSCRIPT"

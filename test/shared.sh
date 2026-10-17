@@ -15,18 +15,38 @@ assistant_limit = small
 model.sample = 1000
 limit.small = 200
 CAPACITY
-read_context | assert_json '.window_tokens == 200 and .capacity_source == "assistant_limit"'
+read_context | assert_json '.window_tokens == 200 and .capacity_source == "assistant_limit" and .configured_model == "sample" and .model_window_tokens == 1000 and .assistant_limit == "small" and .assistant_limit_tokens == 200 and .remaining_tokens == 200'
+read_context | jq -e --arg config "$PROJECT_CONFIG/capacity.conf" '.capacity_config == $config' >/dev/null
 sed '/assistant_limit = small/d' "$PROJECT_CONFIG/capacity.conf" > "$TMP/explicit.conf"
 CONTEXT_CAPACITY_CONFIG="$TMP/explicit.conf" read_context | assert_json '.window_tokens == 1000 and .capacity_source == "model_preset"'
 printf 'custom = 321\n' >> "$TMP/explicit.conf"
-CONTEXT_CAPACITY_CONFIG="$TMP/explicit.conf" read_context | assert_json '.window_tokens == 321 and .capacity_source == "custom"'
+CONTEXT_CAPACITY_CONFIG="$TMP/explicit.conf" read_context | assert_json '.window_tokens == 321 and .capacity_source == "custom" and .configured_model == "sample" and .model_window_tokens == 1000 and .assistant_limit == null and .assistant_limit_tokens == null'
 printf 'custom =\n' > "$TMP/explicit.conf"
-CONTEXT_CAPACITY_CONFIG="$TMP/explicit.conf" read_context | assert_json '.window_tokens == null and .used_percentage == null'
+CONTEXT_CAPACITY_CONFIG="$TMP/explicit.conf" read_context | assert_json '.window_tokens == null and .used_percentage == null and .remaining_tokens == null and .configured_model == null and .model_window_tokens == null'
 printf 'selected_model = missing\n' > "$TMP/explicit.conf"
 if CONTEXT_CAPACITY_CONFIG="$TMP/explicit.conf" read_context > "$TMP/out" 2> "$TMP/err"; then exit 1; fi
 [[ -s "$TMP/err" ]]
 [[ -z "$("$BASH_BIN" -c 'source "$1/src/get-context.sh"' bash "$ROOT")" ]]
 printf 'ok: capacity and configuration\n'
+
+# Reports distinguish the configured preset from the recorded model, and expose
+# the actual selected file so the skill can correct the denominator if needed.
+measurement='{"used_tokens":60,"measurement_source":"fixture","measurement_basis":"fixture","model":"recorded-other","measured_at":null,"segment":"initial"}'
+context_report "$measurement" reading json |
+  assert_json '.model == "recorded-other" and .configured_model == "sample" and .used_tokens == 60 and .used_percentage == 30 and .remaining_tokens == 140 and .model_window_tokens == 1000'
+report="$(context_report "$measurement" reading text)"
+[[ "$report" == *'30% used (60 / 200 tokens)'* && "$report" == *'70% remaining (140 tokens)'* ]]
+[[ "$report" == *'Recorded model: recorded-other'* && "$report" == *'Capacity model preset: sample'* ]]
+[[ "$report" == *"Capacity config: $PROJECT_CONFIG/capacity.conf"* ]]
+# Restored or resumed readings show when they were recorded.
+context_report "$(jq -c '.measured_at = "2026-10-17T12:00:00Z"' <<< "$measurement")" reading text |
+  grep -qF 'tokens). Recorded at 2026-10-17T12:00:00Z.'
+context_report '{"used_tokens":250,"measurement_source":"fixture","measurement_basis":"fixture"}' reading json |
+  assert_json '.used_percentage == 125 and .remaining_tokens == 0 and .remaining_percentage == 0'
+context_report '{"used_tokens":null,"measurement_source":"unavailable","measurement_basis":"fixture"}' reading json |
+  assert_json '.used_percentage == null and .remaining_tokens == null and .configured_model == "sample"'
+CONTEXT_CAPACITY_CONFIG="$TMP/explicit.conf" context_report "$measurement" reading json 2>/dev/null && exit 1
+printf 'ok: capacity provenance, token counts and model reporting\n'
 
 # Observable reminder sequences, isolated sessions, and concurrent delivery.
 threshold_config() {
