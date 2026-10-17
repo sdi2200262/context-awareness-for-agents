@@ -1,6 +1,6 @@
 {
   "name": "context-awareness",
-  "description": "On-demand context readings and configurable threshold instructions for Codex.",
+  "description": "On-demand context readings and configurable threshold reminders for Codex.",
   "version": "2.3.0",
   "author": {"name": "CobuterMan"},
   "homepage": "https://github.com/sdi2200262/context-awareness-for-agents",

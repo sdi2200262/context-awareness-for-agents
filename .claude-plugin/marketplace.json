@@ -8,7 +8,7 @@
     {
       "name": "context-awareness",
       "source": "./",
-      "description": "Read recorded context usage and inject instructions at configured thresholds.",
+      "description": "Read recorded context usage and inject reminders at configured thresholds.",
       "category": "context-management",
       "tags": [
         "context-window",

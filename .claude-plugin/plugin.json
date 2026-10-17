@@ -1,6 +1,6 @@
 {
   "name": "context-awareness",
-  "description": "On-demand context readings and configurable threshold instructions for Claude Code.",
+  "description": "On-demand context readings and configurable threshold reminders for Claude Code.",
   "version": "2.3.0",
   "author": {
     "name": "CobuterMan"
