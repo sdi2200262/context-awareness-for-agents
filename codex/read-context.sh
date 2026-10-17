@@ -7,13 +7,12 @@ unavailable() {
   printf '%s\n' '{"used_tokens":null,"model":null,"measurement_source":"unavailable","measured_at":null,"segment":null,"measurement_basis":"codex_latest_total"}'
 }
 if [[ -z "$TRANSCRIPT" ]]; then
-  paths=()
-  while IFS= read -r path; do paths+=("$path"); done < <(
+  matches=0
+  while IFS= read -r path; do TRANSCRIPT="$path"; matches=$((matches + 1)); done < <(
     find "${CODEX_HOME:-$HOME/.codex}/sessions" -maxdepth 4 -type f -name "rollout-*-$SID.jsonl" 2>/dev/null || true
   )
   # Never borrow another thread or arbitrarily pick between duplicate logs.
-  if [[ ${#paths[@]} -ne 1 ]]; then unavailable; exit 0; fi
-  TRANSCRIPT="${paths[0]}"
+  if [[ "$matches" -ne 1 ]]; then unavailable; exit 0; fi
 fi
 if [[ ! -f "$TRANSCRIPT" || ! -r "$TRANSCRIPT" ]]; then unavailable; exit 0; fi
 if ! head -n 1 "$TRANSCRIPT" | jq -e --arg sid "$SID" \
