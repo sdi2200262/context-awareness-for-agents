@@ -21,7 +21,8 @@
       "repository": "https://github.com/sdi2200262/context-awareness-for-agents",
       "author": {
         "name": "CobuterMan"
-      }
+      },
+      "version": "2.3.1"
     }
   ]
 }

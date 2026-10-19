@@ -36,7 +36,8 @@ codex plugin marketplace add sdi2200262/context-awareness-for-agents
 codex plugin add context-awareness@context-awareness-for-agents
 ```
 
-Restart Codex and trust the plugin's hook in `/hooks` to enable reminders.
+Start a new Codex session after installation and trust the plugin's hook in
+`/hooks` to enable reminders.
 Codex also needs permission to run the skill's shell command.
 
 </details>
