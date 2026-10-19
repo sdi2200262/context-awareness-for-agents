@@ -42,6 +42,15 @@ Codex also needs permission to run the skill's shell command.
 
 </details>
 
+## Use
+
+Ask your agent “Pace your work according to how much context you have used” or
+“Check your context usage periodically.” You can also invoke `get-my-context`
+directly.
+
+You can use threshold reminders to have your agent update progress in memory
+as the conversation grows.
+
 ## Configure
 
 Readings come from the latest usage your assistant has recorded; they may
