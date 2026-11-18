@@ -65,7 +65,7 @@ capacities.
 | Assistant | Default model | Usable context window |
 | --- | --- | --- |
 | Claude Code | Opus 5.5 | About 967,000 tokens from a 1M window |
-| Codex | GPT-6.1 Sol | 475,000 tokens from a 500k window |
+| Codex | GPT-6.2 Sol | 475,000 tokens from a 500k window |
 
 To keep the skill and turn reminders off, use a `config.json` containing:
 
